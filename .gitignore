@@ -1,0 +1,6 @@
+.env
+*.csv
+*.tsv
+/imports/
+/fiscatoni
+/fiscatoni.exe

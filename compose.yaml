@@ -1,0 +1,21 @@
+services:
+  app:
+    image: fiscatoni:dev
+    build: .
+    environment:
+      MYSQL_DATABASE: fiscatoni
+      MYSQL_USER: fiscatoni
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+    volumes:
+      - ledger-data:/var/lib/mysql
+    network_mode: none
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql --protocol=tcp -h 127.0.0.1 -u fiscatoni fiscatoni -e 'SELECT 1' >/dev/null"]
+      interval: 3s
+      timeout: 4s
+      retries: 40
+      start_period: 15s
+
+volumes:
+  ledger-data:
