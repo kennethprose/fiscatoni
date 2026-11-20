@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -15,10 +16,12 @@ import (
 
 	"fiscatoni/internal/importer"
 	"fiscatoni/internal/ledger"
+	"fiscatoni/internal/web"
 	"github.com/go-sql-driver/mysql"
 )
 
-const usage = `fiscatoni preview [-rows] [-mapping profile.json] FILE
+const usage = `fiscatoni serve [-listen 127.0.0.1:8080]
+fiscatoni preview [-rows] [-mapping profile.json] FILE
 fiscatoni import -account LABEL [-mapping profile.json] [-keep-lines N,N] [-skip-lines N,N] FILE
 Use - as FILE to read CSV bytes from standard input. Amounts are in USD cents.`
 
@@ -35,6 +38,20 @@ func run(args []string) error {
 		return nil
 	}
 	cmd := args[0]
+	if cmd == "serve" {
+		flags := flag.NewFlagSet(cmd, flag.ContinueOnError)
+		listen := flags.String("listen", "127.0.0.1:8080", "HTTP listen address")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		db, err := openDB()
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		server := http.Server{Addr: *listen, Handler: web.Handler(db), ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 2 * time.Minute, IdleTimeout: time.Minute}
+		return server.ListenAndServe()
+	}
 	if cmd != "import" && cmd != "preview" {
 		return errors.New(usage)
 	}
@@ -115,18 +132,10 @@ func run(args []string) error {
 			decisions[line] = i == 0
 		}
 	}
-	cfg := mysql.NewConfig()
-	cfg.User = "fiscatoni"
-	cfg.DBName = "fiscatoni"
-	cfg.Net = "tcp"
-	cfg.Addr = "127.0.0.1:3306"
-	cfg.Passwd = os.Getenv("MYSQL_PASSWORD")
-	cfg.Timeout = 10 * time.Second
-	connector, err := mysql.NewConnector(cfg)
+	db, err := openDB()
 	if err != nil {
 		return err
 	}
-	db := sql.OpenDB(connector)
 	defer db.Close()
 	result, err := ledger.Save(context.Background(), db, strings.TrimSpace(account), b, decisions)
 	if err != nil {
@@ -138,4 +147,19 @@ func run(args []string) error {
 	}
 	fmt.Printf("%s: batch %d saved, %d added, %d skipped.\n", b.Bank, result.ID, result.Added, result.Skipped)
 	return nil
+}
+
+func openDB() (*sql.DB, error) {
+	cfg := mysql.NewConfig()
+	cfg.User = "fiscatoni"
+	cfg.DBName = "fiscatoni"
+	cfg.Net = "tcp"
+	cfg.Addr = "127.0.0.1:3306"
+	cfg.Passwd = os.Getenv("MYSQL_PASSWORD")
+	cfg.Timeout = 10 * time.Second
+	connector, err := mysql.NewConnector(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return sql.OpenDB(connector), nil
 }

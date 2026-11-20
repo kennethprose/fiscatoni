@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173d35">
+  <title>Transactions · Fiscatoni</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/transactions.css">
+  <script src="/transactions.js" defer></script>
+</head>
+<body>
+  <header class="bar">
+    <div class="bar-inner">
+      <a class="brand" href="/"><i class="logo" aria-hidden="true"></i>Fiscatoni</a>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="/" aria-current="page">Transactions</a>
+        <a href="/imports">Imports</a>
+      </nav>
+      <span class="local"><i></i> Local instance</span>
+    </div>
+  </header>
+  <main class="ledger">
+    <div class="page-title ledger-title">
+      <div>
+        <h1>Transactions</h1>
+        <p>Browse your imported activity across accounts.</p>
+      </div>
+      <a class="primary import-link" href="/imports">Import CSV</a>
+    </div>
+
+    <form id="filters" class="card filters" aria-label="Transaction filters">
+      <div class="filter-fields">
+        <label class="search-field">Search
+          <input type="search" name="search" maxlength="200" placeholder="Merchant or description" autocomplete="off">
+        </label>
+        <label>Account
+          <select name="account"><option value="">All accounts</option></select>
+        </label>
+        <label>Category
+          <select name="category"><option value="">All categories</option><option value="!">Uncategorized</option></select>
+        </label>
+        <label>Direction
+          <select name="direction"><option value="">Any direction</option><option value="out">Money out</option><option value="in">Money in</option></select>
+        </label>
+        <label>From
+          <input type="date" name="from" min="1000-01-01" max="9999-12-31">
+        </label>
+        <label>Through
+          <input type="date" name="to" min="1000-01-01" max="9999-12-31">
+        </label>
+      </div>
+      <div class="filter-actions">
+        <p id="filter-error" role="status" hidden></p>
+        <button type="reset" class="secondary">Clear filters</button>
+        <button type="submit" class="primary">Apply filters</button>
+      </div>
+    </form>
+
+    <section class="card ledger-results" aria-label="Matching transactions">
+      <div class="ledger-toolbar">
+        <p id="result-count" role="status" tabindex="-1">Loading transactions…</p>
+        <span id="sort-order" hidden>Newest first</span>
+      </div>
+      <p class="ledger-notice" id="ledger-notice" role="status" hidden></p>
+      <div class="table-wrap" id="transaction-table" tabindex="0" role="region" aria-label="Transactions table" hidden>
+        <table>
+          <thead><tr><th scope="col">Date</th><th scope="col">Description</th><th scope="col">Account</th><th scope="col">Category</th><th scope="col" class="money">Amount</th><th scope="col" class="ledger-actions">Actions</th></tr></thead>
+          <tbody id="transaction-rows"></tbody>
+        </table>
+      </div>
+      <div class="empty ledger-empty" id="result-state" hidden>
+        <span class="table-icon" aria-hidden="true"></span>
+        <strong id="state-title"></strong>
+        <p id="state-details"></p>
+        <a id="first-import" class="secondary import-link" href="/imports" hidden>Import a CSV</a>
+        <button id="retry" class="secondary" type="button" hidden>Try again</button>
+      </div>
+      <div class="ledger-pager" id="pagination" hidden>
+        <button type="button" class="secondary" id="ledger-prev">Previous</button>
+        <span id="page-number"></span>
+        <button type="button" class="secondary" id="ledger-next">Next</button>
+      </div>
+    </section>
+  </main>
+  <dialog class="ledger-dialog" id="edit-category" aria-labelledby="edit-title">
+    <form id="edit-form">
+      <div><h2 id="edit-title">Edit category</h2><p class="ledger-row-summary" id="edit-summary"></p></div>
+      <label for="edit-choice">Category</label>
+      <select id="edit-choice"></select>
+      <label id="edit-new-label" hidden>New category name
+        <input id="edit-new" maxlength="128" autocomplete="off">
+      </label>
+      <p class="error" id="edit-error" role="alert" hidden></p>
+      <div class="category-actions">
+        <button type="button" class="secondary" id="edit-cancel">Cancel</button>
+        <button type="submit" class="primary" id="edit-submit">Save category</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog class="ledger-dialog" id="delete-transaction" aria-labelledby="delete-title" aria-describedby="delete-summary delete-description">
+    <form id="delete-form">
+      <div><h2 id="delete-title">Delete transaction?</h2><p class="ledger-row-summary" id="delete-summary"></p></div>
+      <p id="delete-description">This permanently removes the transaction from your ledger.</p>
+      <p class="error" id="delete-error" role="alert" hidden></p>
+      <div class="category-actions">
+        <button type="button" class="secondary" id="delete-cancel" autofocus>Cancel</button>
+        <button type="submit" class="danger" id="delete-submit">Delete transaction</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

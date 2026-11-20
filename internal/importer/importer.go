@@ -27,7 +27,7 @@ var profiles = []Profile{
 		Description: "Description", Category: "Category", Type: "Type", Amount: "Amount", Memo: "Memo"},
 	{Bank: "capitalone", Date: "Transaction Date", Layout: "2006-01-02", Posted: "Posted Date",
 		Description: "Description", Category: "Category", Debit: "Debit", Credit: "Credit", Card: "Card No."},
-	{Bank: "robinhood-card", Date: "Date", Layout: "2006-01-02", Time: "Time", Description: "Description",
+	{Bank: "robinhood", Date: "Date", Layout: "2006-01-02", Time: "Time", Description: "Description",
 		Merchant: "Merchant", Amount: "Amount", Status: "Status", Type: "Type", Invert: true},
 }
 
@@ -76,10 +76,70 @@ func (p Profile) matches(header map[string]int) bool {
 	return true
 }
 
-func Parse(data []byte, custom *Profile) (Batch, error) {
+// Inspection exposes the original header spelling for a mapping form. An
+// unrecognized layout still has usable columns, even if its rows need mapping.
+type Inspection struct {
+	Headers []string
+	Sample  []string
+	Profile *Profile
+}
+
+func Inspect(data []byte) (Inspection, error) {
+	ins, _, err := readHeader(data, profiles)
+	return ins, err
+}
+
+func readHeader(data []byte, candidates []Profile) (Inspection, *csv.Reader, error) {
 	if !utf8.Valid(data) {
-		return Batch{}, errors.New("CSV must be UTF-8")
+		return Inspection{}, nil, errors.New("CSV must be UTF-8")
 	}
+	input := bytes.TrimPrefix(data, []byte{0xef, 0xbb, 0xbf})
+	var best Inspection
+	for _, sep := range []rune{',', ';', '\t'} {
+		r := csv.NewReader(bytes.NewReader(input))
+		r.Comma = sep
+		header, err := r.Read()
+		if err != nil || len(header) < 2 {
+			continue
+		}
+		columns := make(map[string]int)
+		for i, col := range header {
+			k := key(col)
+			if k == "" {
+				continue
+			}
+			if _, exists := columns[k]; exists {
+				return Inspection{}, nil, errors.New("duplicate CSV header")
+			}
+			columns[k] = i
+		}
+		ins := Inspection{Headers: header}
+		for i := range candidates {
+			if candidates[i].matches(columns) {
+				if ins.Profile != nil {
+					ins.Profile = nil
+					break
+				}
+				ins.Profile = &candidates[i]
+			}
+		}
+		sampleReader := csv.NewReader(bytes.NewReader(input[r.InputOffset():]))
+		sampleReader.Comma = sep
+		ins.Sample, _ = sampleReader.Read()
+		if ins.Profile != nil {
+			return ins, r, nil
+		}
+		if len(header) > len(best.Headers) {
+			best = ins
+		}
+	}
+	if len(best.Headers) == 0 {
+		return best, nil, errors.New("expected a header with at least two CSV columns")
+	}
+	return best, nil, nil
+}
+
+func Parse(data []byte, custom *Profile) (Batch, error) {
 	candidates := profiles
 	if custom != nil {
 		if err := custom.validate(); err != nil {
@@ -87,67 +147,45 @@ func Parse(data []byte, custom *Profile) (Batch, error) {
 		}
 		candidates = []Profile{*custom}
 	}
-	input := bytes.TrimPrefix(data, []byte{0xef, 0xbb, 0xbf})
-	for _, separator := range []rune{',', ';', '\t'} {
-		r := csv.NewReader(bytes.NewReader(input))
-		r.Comma = separator
-		header, err := r.Read()
-		if err != nil || len(header) < 2 {
-			continue
-		}
-		columns := map[string]int{}
-		for i, col := range header {
-			k := key(col)
-			if k == "" {
-				continue
-			}
-			if _, exists := columns[k]; exists {
-				return Batch{}, errors.New("duplicate CSV header")
-			}
-			columns[k] = i
-		}
-		var matches []Profile
-		for _, p := range candidates {
-			if p.matches(columns) {
-				matches = append(matches, p)
-			}
-		}
-		if len(matches) > 1 {
-			return Batch{}, errors.New("ambiguous CSV layout; supply -mapping")
-		}
-		if len(matches) == 0 {
-			continue
-		}
-		p := matches[0]
-		batch := Batch{Bank: p.Bank, Digest: sha256.Sum256(data)}
-		for {
-			record, err := r.Read()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return Batch{}, fmt.Errorf("invalid CSV: %w", err)
-			}
-			line, _ := r.FieldPos(0)
-			get := func(col string) string {
-				if col == "" {
-					return ""
-				}
-				return strings.TrimSpace(record[columns[key(col)]])
-			}
-			row, err := p.parseRow(get)
-			if err != nil {
-				return Batch{}, fmt.Errorf("line %d: %w", line, err)
-			}
-			row.Line = line
-			batch.Rows = append(batch.Rows, row)
-		}
-		if len(batch.Rows) == 0 {
-			return Batch{}, errors.New("CSV contains no transactions")
-		}
-		return batch, nil
+	ins, r, err := readHeader(data, candidates)
+	if err != nil {
+		return Batch{}, err
 	}
-	return Batch{}, errors.New("unrecognized CSV layout; supply a matching -mapping JSON file")
+	if ins.Profile == nil {
+		return Batch{}, errors.New("unrecognized CSV layout; supply a matching -mapping JSON file")
+	}
+	columns := make(map[string]int)
+	for i, col := range ins.Headers {
+		columns[key(col)] = i
+	}
+	p := ins.Profile
+	batch := Batch{Bank: p.Bank, Digest: sha256.Sum256(data)}
+	for {
+		record, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return Batch{}, fmt.Errorf("invalid CSV: %w", err)
+		}
+		line, _ := r.FieldPos(0)
+		get := func(col string) string {
+			if col == "" {
+				return ""
+			}
+			return strings.TrimSpace(record[columns[key(col)]])
+		}
+		row, err := p.parseRow(get)
+		if err != nil {
+			return Batch{}, fmt.Errorf("line %d: %w", line, err)
+		}
+		row.Line = line
+		batch.Rows = append(batch.Rows, row)
+	}
+	if len(batch.Rows) == 0 {
+		return Batch{}, errors.New("CSV contains no transactions")
+	}
+	return batch, nil
 }
 
 func (p Profile) parseRow(get func(string) string) (Row, error) {

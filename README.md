@@ -1,6 +1,28 @@
 # Fiscatoni
 
-A self-hosted Go importer for USD card transactions, backed by MySQL 8.4. This first version runs from the command line. Previewing a file requires only the importer image.
+A self-hosted Go importer for USD card transactions, backed by MySQL 8.4. The browser interface and CLI use the same parser and database.
+
+## Browse transactions
+
+Open the home page to view imported transactions, newest first. Filter by account, category, activity date, or money in and out. Search matches the merchant and description. Date filters include both selected days. **Uncategorized** shows transactions with an empty category.
+
+Use **Edit category** on a saved row to choose an existing category, add a new one, or clear the category. The edit applies to that transaction. Use **Delete** and confirm to remove a row. If you import the same file again into the same account, the importer reviews the deleted rows while preserving the other rows and previous skip decisions.
+
+## Import in the browser
+
+Set `MYSQL_PASSWORD` in a local `.env` file before first startup, then run `docker compose up -d --build --wait`. Open [Fiscatoni](http://127.0.0.1:8080) and choose **Imports**. To choose another host port, set `FISCATONI_PORT` in the same file.
+
+Open **Accounts** to save a bank and account name to your local profile. Accounts created by previous imports appear here too.
+
+Drop a CSV or choose a file. A known bank layout opens a transaction preview. Use **Edit column mapping** to adjust the interpretation, or map an unfamiliar file using its headers and sample values. Use **Update preview** after changing a mapping. Choose a **Destination account** for that bank, or use **Add account** during the import. When the bank has one saved account, the importer selects it automatically.
+
+Review each signed USD amount and category. The category menu includes categories from previous imports and the current statement. Choose **Add a new category…** to enter a name and reuse it on other rows in the preview. Categories become available for later imports when you save a transaction using them.
+
+Check **Remember for merchant** to use that category on future imports across your accounts. Matching uses the merchant field, or the full description when the export omits a merchant. It ignores case and differences in whitespace. A remembered category takes precedence over the bank category. You can change a row for this import only, or check the box again to update the rule.
+
+Select **Save to MySQL** to commit the import. If existing transactions match, choose **Keep** or **Skip** for each flagged row and save again. Only rows added to the ledger can create or update a merchant rule.
+
+The browser sends the selected CSV only to the local Go server. Previews are processed in memory. The container serves all interface assets locally, publishes the web port only on host loopback, and keeps MySQL on container loopback.
 
 ## Preview a bank export
 
@@ -20,11 +42,11 @@ Add `-rows` before `/input.csv` to print transaction details locally, including 
 | Capital One card | A debit is negative and a credit is positive. Preserves the category and card reference, including leading zeroes. |
 | Robinhood card | A positive source amount becomes a negative ledger amount. Preserves merchant, description, source time, status and type. The export supplies no spending category. |
 
-The importer keeps bank categories as supplied. A positive amount may be a refund or card payment. Spending reports and merchant categorization rules are future work. Robinhood brokerage activity uses a different layout.
+The offline CLI preview shows the bank's category. CLI imports apply saved merchant rules when writing to MySQL. A positive amount may be a refund or card payment. Robinhood brokerage activity uses a different layout.
 
 ## Save transactions
 
-Create a local `.env` file in the project directory with a line of the form `MYSQL_PASSWORD=your-long-random-password`. Choose the password before the first database startup. Compose runs one container with MySQL and the Go executable. The importer connects over loopback. Network access is disabled and the named `ledger-data` volume retains the database between runs.
+The browser and CLI share a single container and the persistent `ledger-data` volume. Start the container before a CLI import.
 
 ```powershell
 docker compose up -d --build --wait
@@ -36,7 +58,7 @@ Choose a stable account label and reuse it on subsequent exports for that accoun
 cmd /c 'docker compose exec -T app fiscatoni import -account "My Chase card" - < "%USERPROFILE%\Downloads\chase.csv"'
 ```
 
-The importer validates the entire file before saving. Each import commits as one database transaction. An identical file for the same bank and account returns its original batch ID. For overlapping exports, an existing row with the same activity date, signed amount, and normalized description triggers a review. Review the reported lines with `preview -rows`, then pass decisions such as `-skip-lines 4,8 -keep-lines 10` before the filename. An unresolved match saves nothing. Identical purchases within a single fresh export are retained. Edits to a date, description, or amount can prevent a match across files.
+The importer validates the entire file before saving. Each import commits as one database transaction. An identical file for the same bank and account returns its original batch ID and can replace previously deleted rows. For overlapping exports, an existing row with the same activity date, signed amount, and normalized description triggers a review. Review the reported lines with `preview -rows`, then pass decisions such as `-skip-lines 4,8 -keep-lines 10` before the filename. An unresolved match saves nothing. Identical purchases within a single fresh export are retained. Edits to a date, description, or amount can prevent a match across files.
 
 Stop the database with `docker compose down`. Keep its volume when replacing containers. The database password in `.env` is used to initialize a new volume.
 

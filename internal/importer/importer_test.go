@@ -13,7 +13,7 @@ func TestBankExports(t *testing.T) {
 	}{
 		{"chase", "Transaction Date,Post Date,Description,Category,Type,Amount,Memo\n04/05/2026,04/06/2026,\"Sample, Shop\",Food,Sale,-7.09,\n04/05/2026,04/06/2026,Test payment,,Payment,9,\n", -709, 900, "Food", ""},
 		{"capitalone", "Transaction Date,Posted Date,Card No.,Description,Category,Debit,Credit\n2026-04-05,2026-04-06,0000,Sample shop,Food,7.09,\n2026-04-05,2026-04-06,0000,Test credit,Payment/Credit,,9\n", -709, 900, "Food", ""},
-		{"robinhood-card", "Date,Time,Cardholder,Amount,Points,Balance,Status,Type,Merchant,Description\n2026-04-05,1:00 PM,Example,7.09,0,0,Posted,Purchase,Sample shop,Demo\n2026-04-05,2:00 PM,Example,-9,0,0,Posted,Payment,Sample bank,Demo\n", -709, 900, "", "Sample shop"},
+		{"robinhood", "Date,Time,Cardholder,Amount,Points,Balance,Status,Type,Merchant,Description\n2026-04-05,1:00 PM,Example,7.09,0,0,Posted,Purchase,Sample shop,Demo\n2026-04-05,2:00 PM,Example,-9,0,0,Posted,Payment,Sample bank,Demo\n", -709, 900, "", "Sample shop"},
 	}
 	for _, c := range cases {
 		t.Run(c.bank, func(t *testing.T) {

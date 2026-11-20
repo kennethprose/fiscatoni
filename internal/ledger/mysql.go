@@ -14,6 +14,9 @@ import (
 )
 
 var schema = []string{
+	`CREATE TABLE IF NOT EXISTS merchant_categories (
+		merchant_key BINARY(32) PRIMARY KEY, category TEXT NOT NULL
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 	`CREATE TABLE IF NOT EXISTS accounts (
 		id BIGINT PRIMARY KEY AUTO_INCREMENT, bank VARCHAR(64) NOT NULL, label VARCHAR(128) NOT NULL,
 		currency CHAR(3) NOT NULL DEFAULT 'USD', UNIQUE(bank,label)
@@ -22,6 +25,10 @@ var schema = []string{
 		id BIGINT PRIMARY KEY AUTO_INCREMENT, account_id BIGINT NOT NULL, file_hash BINARY(32) NOT NULL,
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE(account_id,file_hash), UNIQUE(account_id,id), FOREIGN KEY(account_id) REFERENCES accounts(id)
+	) ENGINE=InnoDB`,
+	`CREATE TABLE IF NOT EXISTS deleted_import_rows (
+		import_id BIGINT NOT NULL, source_line INT NOT NULL,
+		PRIMARY KEY(import_id, source_line), FOREIGN KEY(import_id) REFERENCES imports(id)
 	) ENGINE=InnoDB`,
 	`CREATE TABLE IF NOT EXISTS transactions (
 		id BIGINT PRIMARY KEY AUTO_INCREMENT, account_id BIGINT NOT NULL, import_id BIGINT NOT NULL,
@@ -40,6 +47,16 @@ type Result struct {
 	AlreadyImported bool
 }
 
+type OverlapError struct{ Lines []int }
+
+func (e *OverlapError) Error() string {
+	lines := make([]string, len(e.Lines))
+	for i, line := range e.Lines {
+		lines[i] = strconv.Itoa(line)
+	}
+	return fmt.Sprintf("possible overlap on CSV lines %s; review with preview -rows, then use -keep-lines or -skip-lines; no rows saved", strings.Join(lines, ","))
+}
+
 // A match is a reason to review, never authority to discard a transaction.
 func matchKey(r importer.Row) [32]byte {
 	text := strings.ToLower(strings.Join(strings.Fields(r.Description), " "))
@@ -51,39 +68,63 @@ func Save(ctx context.Context, db *sql.DB, account string, batch importer.Batch,
 	if strings.TrimSpace(account) == "" || len(account) > 128 {
 		return Result{}, errors.New("account label must be 1 to 128 bytes")
 	}
-	for _, ddl := range schema {
-		if _, err := db.ExecContext(ctx, ddl); err != nil {
-			return Result{}, err
-		}
+	return save(ctx, db, Account{Label: account}, batch, decisions, nil)
+}
+
+func SaveToAccount(ctx context.Context, db *sql.DB, id int64, batch importer.Batch, decisions, remember map[int]bool) (Result, error) {
+	if id <= 0 {
+		return Result{}, ErrInvalidAccount
+	}
+	return save(ctx, db, Account{ID: id}, batch, decisions, remember)
+}
+
+func save(ctx context.Context, db *sql.DB, account Account, batch importer.Batch, decisions, remember map[int]bool) (Result, error) {
+	if err := ensureSchema(ctx, db); err != nil {
+		return Result{}, err
 	}
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return Result{}, err
 	}
 	defer tx.Rollback()
-	// The unique-key update takes the same account lock for concurrent imports.
-	res, err := tx.ExecContext(ctx, `INSERT INTO accounts(bank,label) VALUES(?,?)
-		ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)`, batch.Bank, account)
-	if err != nil {
-		return Result{}, err
+	// Both entry points lock the account before checking existing imports.
+	accountID := account.ID
+	if accountID == 0 {
+		res, err := tx.ExecContext(ctx, upsertAccount, batch.Bank, account.Label)
+		if err != nil {
+			return Result{}, err
+		}
+		accountID, err = res.LastInsertId()
+		if err != nil {
+			return Result{}, err
+		}
+	} else {
+		err = tx.QueryRowContext(ctx, "SELECT id FROM accounts WHERE id=? AND bank=? FOR UPDATE", account.ID, batch.Bank).Scan(&accountID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return Result{}, ErrInvalidAccount
+		}
 	}
-	accountID, err := res.LastInsertId()
 	if err != nil {
 		return Result{}, err
 	}
 	var result Result
 	err = tx.QueryRowContext(ctx, "SELECT id FROM imports WHERE account_id=? AND file_hash=?", accountID, batch.Digest[:]).Scan(&result.ID)
 	if err == nil {
-		result.AlreadyImported = true
-		return result, nil
-	}
-	if !errors.Is(err, sql.ErrNoRows) {
+		batch.Rows, err = rowsToReimport(ctx, tx, result.ID, batch.Rows)
+		if err != nil {
+			return Result{}, err
+		}
+		if len(batch.Rows) == 0 {
+			result.AlreadyImported = true
+			return result, nil
+		}
+	} else if !errors.Is(err, sql.ErrNoRows) {
 		return Result{}, err
 	}
 
 	// Check only previously committed rows, so matching purchases in one file survive.
 	var keep []importer.Row
-	var unresolved []string
+	var unresolved []int
 	used := 0
 	for _, r := range batch.Rows {
 		k := matchKey(r)
@@ -95,7 +136,7 @@ func Save(ctx context.Context, db *sql.DB, account string, batch importer.Batch,
 		if exists {
 			accept, ok := decisions[r.Line]
 			if !ok {
-				unresolved = append(unresolved, strconv.Itoa(r.Line))
+				unresolved = append(unresolved, r.Line)
 				continue
 			}
 			used++
@@ -107,18 +148,42 @@ func Save(ctx context.Context, db *sql.DB, account string, batch importer.Batch,
 		keep = append(keep, r)
 	}
 	if len(unresolved) > 0 {
-		return Result{}, fmt.Errorf("possible overlap on CSV lines %s; review with preview -rows, then use -keep-lines or -skip-lines; no rows saved", strings.Join(unresolved, ","))
+		return Result{}, &OverlapError{Lines: unresolved}
 	}
 	if used != len(decisions) {
 		return Result{}, errors.New("line decision does not match an overlapping row; no rows saved")
 	}
-	res, err = tx.ExecContext(ctx, "INSERT INTO imports(account_id,file_hash) VALUES(?,?)", accountID, batch.Digest[:])
-	if err != nil {
+	// Browser rows carry the reviewed values. CLI imports resolve rules here.
+	if account.ID == 0 {
+		matches, err := merchantSuggestions(ctx, tx, keep)
+		if err != nil {
+			return Result{}, err
+		}
+		for i, row := range keep {
+			if category, ok := matches[row.Line]; ok {
+				keep[i].Category = category
+			}
+		}
+	}
+	if err := rememberCategories(ctx, tx, keep, remember); err != nil {
 		return Result{}, err
 	}
-	result.ID, err = res.LastInsertId()
-	if err != nil {
-		return Result{}, err
+	if result.ID == 0 {
+		res, err := tx.ExecContext(ctx, "INSERT INTO imports(account_id,file_hash) VALUES(?,?)", accountID, batch.Digest[:])
+		if err != nil {
+			return Result{}, err
+		}
+		result.ID, err = res.LastInsertId()
+		if err != nil {
+			return Result{}, err
+		}
+	} else {
+		// Resolve only the rows that were reviewed for this retry, including explicit skips.
+		for _, row := range batch.Rows {
+			if _, err := tx.ExecContext(ctx, "DELETE FROM deleted_import_rows WHERE import_id=? AND source_line=?", result.ID, row.Line); err != nil {
+				return Result{}, err
+			}
+		}
 	}
 	for _, r := range keep {
 		k := matchKey(r)

@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173d35">
+  <title>Import transactions · Fiscatoni</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+
+<body>
+  <header class="bar">
+    <div class="bar-inner">
+      <a class="brand" href="/"><i class="logo" aria-hidden="true"></i>Fiscatoni</a>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="/">Transactions</a>
+        <a href="/imports" aria-current="page">Imports</a>
+        <button type="button" id="manage-accounts" class="nav-button">Accounts</button>
+      </nav>
+      <span class="local"><i></i> Local instance</span>
+    </div>
+  </header>
+  <main>
+    <div class="page-title">
+      <h1>Import transactions</h1>
+      <p>Upload a bank statement, check the mapping, and review your transactions.</p>
+    </div>
+    <div class="top-grid">
+      <section class="card source">
+        <h2>Statement file</h2>
+        <div id="drop" class="drop">
+          <div class="paper-art" aria-hidden="true"><i></i><b></b></div>
+          <h3 id="drop-title">Drop your CSV here</h3>
+          <p id="file-meta">CSV files up to 32 MiB</p>
+          <button id="browse" class="primary" type="button">Choose file</button>
+          <input hidden type="file" id="file" accept=".csv,.tsv,text/csv,text/tab-separated-values">
+        </div>
+        <p class="error" id="upload-error" role="alert" hidden></p>
+      </section>
+      <aside class="card guide">
+        <h2>Supported formats</h2>
+        <ul class="banks">
+          <li><span class="tile chase" aria-hidden="true">CH</span><span>Chase<small>Credit card export</small></span>
+          </li>
+          <li><span class="tile capital" aria-hidden="true">C1</span><span>Capital One<small>Debit and credit
+                columns</small></span></li>
+          <li><span class="tile robin" aria-hidden="true">RH</span><span>Robinhood<small>Card activity
+                export</small></span></li>
+        </ul>
+        <p class="guide-foot">Using another format? Map its columns after uploading.</p>
+      </aside>
+    </div>
+    <section id="settings" class="card settings" hidden>
+      <div class="section-head">
+        <div>
+          <h2>Import settings</h2>
+          <p id="recognition"></p>
+        </div><button id="map-toggle" class="secondary" aria-controls="mapping" aria-expanded="false">Edit column
+          mapping</button>
+      </div>
+      <div class="account-picker"><label class="account">Destination account<select id="account">
+            <option value="">Select an account…</option>
+          </select></label><button type="button" class="secondary" id="add-destination">Add account</button></div>
+      <p class="error" id="accounts-load-error" role="alert" hidden></p>
+      <form id="mapping" hidden>
+        <div class="form-grid">
+          <label>Bank identifier<input id="bank" required maxlength="64" placeholder="e.g. my-bank"></label>
+          <label>Date format<select id="layout">
+              <option value="2006-01-02">Year-month-day</option>
+              <option value="01/02/2006">Month/day/year</option>
+              <option value="02/01/2006">Day/month/year</option>
+              <option value="1/2/2006">M/D/YYYY</option>
+              <option value="2/1/2006">D/M/YYYY</option>
+            </select></label>
+          <label>Amount format<select id="mode">
+              <option value="signed">One signed amount column</option>
+              <option value="split">Separate debit and credit columns</option>
+            </select></label>
+          <label id="sign-field">Positive amounts represent<select id="sign">
+              <option value="credit">Money received</option>
+              <option value="charge">Money spent</option>
+            </select></label>
+        </div>
+        <div id="columns" class="form-grid"></div>
+        <details>
+          <summary>Additional columns</summary>
+          <div id="optional-columns" class="form-grid"></div>
+        </details>
+        <button class="secondary" type="submit">Update preview</button>
+      </form>
+    </section>
+    <section class="card review">
+      <div class="section-head">
+        <div>
+          <h2>Transaction preview</h2>
+          <p id="summary">Review dates, descriptions, and amounts before saving.</p>
+        </div><span id="count" class="count">0 rows</span>
+      </div>
+      <p id="message" aria-live="polite" hidden></p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Line</th>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Category</th>
+              <th class="money">Amount</th>
+              <th id="decision-head" hidden>Overlap</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div id="empty" class="empty"><span class="table-icon" aria-hidden="true"></span><strong>No transactions to
+          preview</strong>
+        <p>Choose a CSV file to get started.</p>
+      </div>
+      <div id="pages" class="pages" hidden><button id="prev" class="secondary">Previous</button><span
+          id="page-info"></span><button id="next" class="secondary">Next</button></div>
+      <div class="save-bar"><span id="save-note">Changes are saved only when you confirm.</span><button id="save"
+          class="primary" disabled>Save to MySQL</button></div>
+    </section>
+  </main>
+  <dialog id="category-dialog" aria-labelledby="category-title">
+    <form id="new-category">
+      <h2 id="category-title">Add a category</h2>
+      <label>Category name<input id="category-name" required maxlength="128" autocomplete="off"
+          placeholder="e.g. Groceries"></label>
+      <div class="category-actions"><button type="button" id="category-cancel" class="secondary">Cancel</button><button
+          type="submit" class="primary">Use category</button></div>
+    </form>
+  </dialog>
+  <dialog id="accounts-dialog" aria-labelledby="accounts-title">
+    <div class="section-head">
+      <h2 id="accounts-title">Accounts</h2><button type="button" class="secondary" id="accounts-close">Close</button>
+    </div>
+    <ul id="accounts-list" aria-label="Saved accounts"></ul>
+    <form id="new-account">
+      <h3>Add an account</h3>
+      <label>Bank<select id="new-bank">
+          <option value="chase">Chase</option>
+          <option value="capitalone">CapitalOne</option>
+          <option value="robinhood">Robinhood</option>
+          <option value="">Other bank</option>
+        </select></label>
+      <label id="custom-bank-field" hidden>Bank identifier<input id="new-custom-bank" maxlength="64"
+          placeholder="Use the identifier from your column mapping"></label>
+      <label>Account name<input id="new-label" required maxlength="128" placeholder="e.g. Personal credit card"></label>
+      <button type="submit" class="primary">Save account</button>
+    </form>
+    <p id="account-status" role="status"></p>
+  </dialog>
+</body>
+
+</html>
