@@ -108,7 +108,7 @@ func transactionFilters(values url.Values) (ledger.TransactionFilters, error) {
 		return filters, errors.New("The end date must be on or after the start date.")
 	}
 	switch filters.Direction {
-	case "", "in", "out", "spend", "income":
+	case "", "in", "out", "spend", "income", "net":
 	default:
 		return filters, errors.New("Select a valid direction.")
 	}

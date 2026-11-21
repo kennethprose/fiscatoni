@@ -146,8 +146,17 @@
   margin: 0;
   padding: 0 5px;
   list-style: none;
-  background: repeating-linear-gradient(to bottom, #dce5dc 0 1px, transparent 1px 25%) top / 100% var(--plot-height) no-repeat,
-    linear-gradient(#c2cec3, #c2cec3) 0 var(--plot-height) / 100% 1px no-repeat;
+  background: repeating-linear-gradient(to bottom, #dce5dc 0 1px, transparent 1px var(--tick-gap)) top / 100% var(--plot-height) no-repeat,
+    linear-gradient(#dce5dc, #dce5dc) 0 var(--plot-height) / 100% 1px no-repeat;
+}
+
+.monthly-bars::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: calc(var(--plot-height) * var(--zero-ratio));
+  border-top: 1px solid #879b8e;
+  pointer-events: none;
 }
 
 .month-column {
@@ -159,10 +168,8 @@
 }
 
 .month-mark {
-  display: flex;
+  position: relative;
   flex: 1;
-  align-items: flex-end;
-  justify-content: center;
   border-radius: 4px;
 }
 
@@ -178,14 +185,12 @@
   width: min(85%, 44px);
 }
 
-.grouped-bars .bar-income {
-  justify-content: flex-end;
-  padding-right: 2px;
+.grouped-bars .month-mark:first-child .month-fill {
+  margin-inline-end: 2px;
 }
 
-.grouped-bars .bar-spend {
-  justify-content: flex-start;
-  padding-left: 2px;
+.grouped-bars .month-mark:last-child .month-fill {
+  margin-inline-start: 2px;
 }
 
 .chart-legend {
@@ -223,11 +228,21 @@
 }
 
 .month-fill {
+  position: absolute;
+  bottom: calc(100% * (1 - var(--zero-ratio)));
+  inset-inline: 0;
+  margin-inline: auto;
   width: min(65%, 62px);
   border-radius: 5px 5px 0 0;
 }
 
-.month-mark[href] .month-fill {
+.negative-bar .month-fill {
+  top: calc(100% * var(--zero-ratio));
+  bottom: auto;
+  border-radius: 0 0 5px 5px;
+}
+
+.has-value .month-fill {
   min-height: 2px;
 }
 
@@ -237,6 +252,10 @@
 
 .bar-spend .month-fill, .legend-spend[aria-pressed="true"]::before {
   background: var(--forest);
+}
+
+.bar-net .month-fill, .legend-net[aria-pressed="true"]::before {
+  background: #865a9f;
 }
 
 .month-mark[href]:hover {

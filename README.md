@@ -4,7 +4,7 @@ A self-hosted Go importer for USD card transactions, backed by MySQL 8.4. The br
 
 ## Spending overview
 
-The home page shows monthly income and spending, breakdowns by account and category, and the six highest-spend merchants. Toggle **Income** and **Spending** on the monthly chart to view either series on its own or compare both. Choose an account and ending month to compare 3, 6, or 12 months. The account breakdown compares every USD account over the selected period, including accounts with zero spending. The default period ends in the most recent month with income or spending. Select a bar or chart item to open the transactions behind it.
+The home page shows monthly income and spending, breakdowns by account and category, and the six highest-spend merchants. Use the **Income**, **Spending**, and **Net savings** toggles to compare series or view one on its own. Net savings subtracts gross spending from income and appears below zero in months with a shortfall. Choose an account and ending month to compare 3, 6, or 12 months. The account breakdown compares every USD account over the selected period, including accounts with zero spending. The default period ends in the most recent month with income or spending. Select a bar or chart item to open the transactions behind it.
 
 The overview reports gross USD spending. It includes outgoing amounts and excludes credits (including refunds) and transactions whose imported type identifies them as payments or transfers. Merchant labels use the full transaction description when the export has no merchant field.
 

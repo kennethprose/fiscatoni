@@ -42,7 +42,7 @@ func Spending(ctx context.Context, db *sql.DB, accountID int64, end time.Time, m
 	}
 	defer tx.Rollback()
 
-	filters := TransactionFilters{AccountID: accountID, Direction: "overview"}
+	filters := TransactionFilters{AccountID: accountID, Direction: "net"}
 	const source = " FROM transactions t JOIN accounts a ON t.account_id=a.id"
 	if end.IsZero() {
 		where, args := transactionConditions(filters)

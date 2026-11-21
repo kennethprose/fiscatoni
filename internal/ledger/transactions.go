@@ -121,7 +121,7 @@ func transactionConditions(filters TransactionFilters) (string, []any) {
 		conditions = append(conditions, spendCondition, "a.currency = 'USD'")
 	case "income":
 		conditions = append(conditions, incomeCondition, "a.currency = 'USD'")
-	case "overview":
+	case "net":
 		conditions = append(conditions, "(("+spendCondition+") OR ("+incomeCondition+"))", "a.currency = 'USD'")
 	}
 	if len(conditions) == 0 {

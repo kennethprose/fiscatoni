@@ -14,7 +14,9 @@ let pendingReport;
 
 function usd(cents) {
   const value = BigInt(cents);
-  return "$" + wholeNumber.format(value / 100n) + "." + String(value % 100n).padStart(2, "0");
+  const magnitude = value < 0n ? -value : value;
+  const sign = value < 0n ? "−" : "";
+  return sign + "$" + wholeNumber.format(magnitude / 100n) + "." + String(magnitude % 100n).padStart(2, "0");
 }
 
 function monthDate(month) {
@@ -51,26 +53,45 @@ function percent(value, maximum) {
 }
 
 function renderMonthly(account, series) {
-  const maximum = series.flatMap(({groups}) => groups)
-    .reduce((max, group) => BigInt(group.cents) > max ? BigInt(group.cents) : max, 0n);
-  const step = maximum ? tickStep(maximum) : 2500n;
+  let high = 0n;
+  let low = 0n;
+  for (const {groups} of series) {
+    for (const {cents} of groups) {
+      const value = BigInt(cents);
+      if (value > high) high = value;
+      if (value < low) low = value;
+    }
+  }
+  const step = high > low ? tickStep(high - low) : 2500n;
+  const positiveTicks = high > low ? (high + step - 1n) / step : 4n;
+  const negativeTicks = (-low + step - 1n) / step;
+  const totalTicks = positiveTicks + negativeTicks;
+  const range = step * totalTicks;
   const axis = element("div", "month-axis");
   axis.setAttribute("aria-hidden", "true");
-  for (let i = 4; i >= 0; i--) {
-    const cents = Number(step * BigInt(i));
-    const tick = cents >= 100000 ? compactUSD.format(cents / 100) : usd(cents).replace(/\.00$/, "");
+  for (let tickIndex = positiveTicks; tickIndex >= -negativeTicks; tickIndex--) {
+    const cents = step * tickIndex;
+    const magnitude = cents < 0n ? -cents : cents;
+    const tick = magnitude >= 100000n
+      ? (cents < 0n ? "−" : "") + compactUSD.format(Number(magnitude) / 100)
+      : usd(cents).replace(/\.00$/, "");
     axis.append(element("span", "", tick));
   }
   const columns = element("ul", series.length > 1 ? "monthly-bars grouped-bars" : "monthly-bars");
+  columns.style.setProperty("--zero-ratio", Number(positiveTicks) / Number(totalTicks));
+  columns.style.setProperty("--tick-gap", 100 / Number(totalTicks) + "%");
   for (const [index, {label}] of series[0].groups.entries()) {
     const month = monthDate(label);
     const li = element("li", "month-column");
     const bars = element("div", "month-pair");
     for (const {name, direction, groups} of series) {
       const group = groups[index];
+      const cents = BigInt(group.cents);
       const mark = element(group.count ? "a" : "div", "month-mark bar-" + direction);
       const bar = element("div", "month-fill");
-      bar.style.height = percent(group.cents, step * 4n);
+      mark.classList.toggle("negative-bar", cents < 0n);
+      mark.classList.toggle("has-value", cents !== 0n);
+      bar.style.height = percent(cents < 0n ? -cents : cents, range);
       const description = monthFormat.format(month) + " " + name + ", " + usd(group.cents);
       if (group.count) {
         mark.href = transactionsLink(account, label + "-01", lastDay(label), {direction});
@@ -92,9 +113,23 @@ function renderMonthly(account, series) {
 function renderSelectedMonthly() {
   const {report, account, from, to} = displayedReport;
   const active = [...seriesToggles].filter(button => button.getAttribute("aria-pressed") === "true");
-  const series = active.map(({dataset}) => dataset.monthlySeries === "income"
-    ? {name: "income", direction: "income", groups: report.income}
-    : {name: "spending", direction: "spend", groups: report.months});
+  const series = active.map(({dataset}) => {
+    switch (dataset.monthlySeries) {
+    case "income":
+      return {name: "income", direction: "income", groups: report.income};
+    case "spend":
+      return {name: "spending", direction: "spend", groups: report.months};
+    case "net":
+      return {name: "net savings", direction: "net", groups: report.months.map((spending, index) => {
+        const income = report.income[index];
+        return {
+          label: spending.label,
+          cents: BigInt(income.cents) - BigInt(spending.cents),
+          count: income.count + spending.count
+        };
+      })};
+    }
+  });
   const chart = el("monthly-chart");
   const ledgerLink = el("report-ledger");
   chart.hidden = ledgerLink.hidden = !series.length;
@@ -104,9 +139,9 @@ function renderSelectedMonthly() {
     return;
   }
   renderMonthly(account, series);
-  const {direction, name} = series.at(-1);
+  const {direction, name} = series.find(({direction}) => direction === "spend") ?? series.at(-1);
   ledgerLink.href = transactionsLink(account, from, to, {direction});
-  ledgerLink.textContent = "View " + name + " transactions";
+  ledgerLink.textContent = "View " + (direction === "net" ? "income and spending" : name) + " transactions";
 }
 
 function renderRank(kind, groups, linkFor) {

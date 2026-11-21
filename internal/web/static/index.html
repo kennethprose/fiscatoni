@@ -63,12 +63,13 @@
           <div class="chart-legend" role="group" aria-label="Show on monthly chart">
             <button class="legend-income" type="button" data-monthly-series="income" aria-pressed="true" aria-controls="monthly-chart">Income</button>
             <button class="legend-spend" type="button" data-monthly-series="spend" aria-pressed="true" aria-controls="monthly-chart">Spending</button>
+            <button class="legend-net" type="button" data-monthly-series="net" aria-pressed="false" aria-controls="monthly-chart">Net savings</button>
           </div>
         </div>
         <div class="monthly-scroll" id="monthly-chart" role="region" aria-label="Monthly totals" tabindex="0"></div>
-        <p class="monthly-empty" id="monthly-empty" role="status" hidden>Turn on Income or Spending to see monthly totals.</p>
+        <p class="monthly-empty" id="monthly-empty" role="status" hidden>Turn on Income, Spending, or Net savings to see monthly totals.</p>
         <div class="monthly-footer">
-          <p class="spend-method">Income comes from credits identified by their imported type or categorized as Income. Refunds, payments, and transfers identified by type are excluded.</p>
+          <p class="spend-method">Net savings is income minus gross spending. Income comes from credits identified by their imported type or categorized as Income. Refunds, payments, and transfers identified by type are excluded.</p>
           <a id="report-ledger" href="/transactions">View spending transactions</a>
         </div>
       </section>
