@@ -38,6 +38,10 @@ func handler(db *sql.DB, save saveFunc, categories categoryLookup) http.Handler 
 	mux.HandleFunc("GET /imports", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFileFS(w, r, static, "imports.html")
 	})
+	mux.HandleFunc("GET /transactions", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFileFS(w, r, static, "transactions.html")
+	})
+	mux.HandleFunc("GET /api/spending", spendingHandler(db))
 	mux.HandleFunc("GET /api/transactions", transactionHandler(db))
 	mux.HandleFunc("PATCH /api/transactions/{id}", transactionEditHandler(db))
 	mux.HandleFunc("DELETE /api/transactions/{id}", transactionEditHandler(db))

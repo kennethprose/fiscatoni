@@ -2,9 +2,17 @@
 
 A self-hosted Go importer for USD card transactions, backed by MySQL 8.4. The browser interface and CLI use the same parser and database.
 
+## Spending overview
+
+The home page shows monthly income and spending, breakdowns by account and category, and the six highest-spend merchants. Toggle **Income** and **Spending** on the monthly chart to view either series on its own or compare both. Choose an account and ending month to compare 3, 6, or 12 months. The account breakdown compares every USD account over the selected period, including accounts with zero spending. The default period ends in the most recent month with income or spending. Select a bar or chart item to open the transactions behind it.
+
+The overview reports gross USD spending. It includes outgoing amounts and excludes credits (including refunds) and transactions whose imported type identifies them as payments or transfers. Merchant labels use the full transaction description when the export has no merchant field.
+
+Income includes positive USD transactions with an income-specific imported type such as payroll, direct deposit, interest, or dividends. You can include an unlabeled incoming transaction by setting its category to **Income**. Imported types that identify refunds, payments, transfers, or reversals are excluded from income.
+
 ## Browse transactions
 
-Open the home page to view imported transactions, newest first. Filter by account, category, activity date, or money in and out. Search matches the merchant and description. Date filters include both selected days. **Uncategorized** shows transactions with an empty category.
+Choose **Transactions** to view imported transactions, newest first. Filter by account, category, activity date, or money in and out. Search matches the merchant and description. Date filters include both selected days. **Uncategorized** shows transactions with an empty category.
 
 Use **Edit category** on a saved row to choose an existing category, add a new one, or clear the category. The edit applies to that transaction. Use **Delete** and confirm to remove a row. If you import the same file again into the same account, the importer reviews the deleted rows while preserving the other rows and previous skip decisions.
 

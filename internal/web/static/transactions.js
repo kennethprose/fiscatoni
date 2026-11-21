@@ -10,6 +10,7 @@ let currentPage = 1;
 let activeRequest;
 let metadataReady = false;
 let categoryNames = [];
+let merchant = "";
 
 async function json(url, signal) {
   const response = await fetch(url, {signal});
@@ -56,6 +57,33 @@ async function loadFilterOptions() {
 
 function bankName(bank) {
   return Object.hasOwn(banks, bank) ? banks[bank] : bank;
+}
+
+function applyLinkedFilters() {
+  const linked = new URLSearchParams(location.search);
+  for (const key of ["from", "to", "direction", "account", "category", "merchant"]) {
+    if (linked.has(key)) applied.set(key, linked.get(key));
+  }
+  for (const key of ["from", "to", "direction"]) {
+    form.elements[key].value = applied.get(key) || "";
+  }
+  const account = applied.get("account");
+  if (account) {
+    form.elements.account.add(new Option("Selected account", account));
+    form.elements.account.value = account;
+  }
+  if (applied.has("category")) {
+    const name = applied.get("category");
+    if (name) form.elements.category.add(new Option(name, "name:" + name));
+    form.elements.category.value = name ? "name:" + name : "!";
+  }
+  merchant = applied.get("merchant") || "";
+  showMerchantFilter();
+}
+
+function showMerchantFilter() {
+  el("merchant-filter-label").textContent = "Merchant · " + merchant;
+  el("merchant-filter").hidden = !merchant;
 }
 
 function shownAmount(row) {
@@ -274,12 +302,21 @@ form.onsubmit = event => {
       if (value) next.set(key, value === "!" ? "" : value.slice("name:".length));
     } else if (value.trim()) next.set(key, value.trim());
   }
+  if (merchant) next.set("merchant", merchant);
   applied = next;
   loadPage(1);
 };
 
 form.onreset = () => {
+  merchant = "";
+  showMerchantFilter();
   applied = new URLSearchParams();
+  loadPage(1);
+};
+el("clear-merchant").onclick = () => {
+  merchant = "";
+  showMerchantFilter();
+  applied.delete("merchant");
   loadPage(1);
 };
 el("ledger-prev").onclick = () => loadPage(currentPage - 1);
@@ -291,5 +328,6 @@ window.addEventListener("pageshow", event => {
     loadPage(currentPage);
   }
 });
+applyLinkedFilters();
 loadFilterOptions();
 loadPage(1);

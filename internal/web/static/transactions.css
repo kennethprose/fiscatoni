@@ -47,6 +47,19 @@
   font-size: .875rem;
 }
 
+.merchant-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+  font-size: .875rem;
+  color: var(--muted);
+}
+
+.merchant-filter span {
+  overflow-wrap: anywhere;
+}
+
 .ledger-results {
   margin-top: 20px;
   overflow: hidden;

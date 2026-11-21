@@ -26,6 +26,11 @@ label{display:grid;gap:6px;font-size:.88rem;font-weight:600}input,select{width:1
   .bar .logo{display:none}
   .main-nav a,.main-nav .nav-button{font-size:.8rem}
 }
+@media(max-width:480px){
+  .bar-inner{height:auto;flex-wrap:wrap;row-gap:0}
+  .bar .brand{min-height:48px}
+  .main-nav{width:100%;min-height:39px}
+}
 .account-picker{display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px}.account-picker .account{width:min(100%,350px)}
 .category-picker{display:grid;gap:5px;min-width:11rem;max-width:18rem}
 .category-picker small,.remember-category{color:var(--muted);font-size:.8rem;font-weight:400}

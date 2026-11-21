@@ -8,12 +8,21 @@ import (
 
 const transactionsPerPage = 25
 
+const merchantLabel = "COALESCE(NULLIF(t.merchant,''),t.description)"
+const paymentOrTransferTypes = "'payment','payment/credit','card payment','credit card payment','transfer'"
+const spendCondition = `t.amount_cents < 0 AND LOWER(TRIM(t.source_type)) NOT IN (` + paymentOrTransferTypes + `)`
+const incomeCondition = `t.amount_cents > 0
+	AND LOWER(TRIM(t.source_type)) NOT IN (` + paymentOrTransferTypes + `,'refund','return','reversal','chargeback')
+	AND (LOWER(TRIM(t.category)) = 'income' OR LOWER(TRIM(t.source_type)) IN
+		('income','payroll','direct deposit','salary','wages','bonus','interest','interest paid','interest credit','dividend','dividends'))`
+
 type TransactionFilters struct {
 	AccountID int64
 	Category  *string // An empty string selects uncategorized transactions.
 	From      string
 	To        string
 	Search    string
+	Merchant  string
 	Direction string
 	Page      int
 }
@@ -99,11 +108,21 @@ func transactionConditions(filters TransactionFilters) (string, []any) {
 			OR t.merchant COLLATE utf8mb4_0900_ai_ci LIKE ? ESCAPE '!')`)
 		args = append(args, pattern, pattern)
 	}
+	if filters.Merchant != "" {
+		conditions = append(conditions, "CAST("+merchantLabel+" AS BINARY) = CAST(? AS BINARY)")
+		args = append(args, filters.Merchant)
+	}
 	switch filters.Direction {
 	case "out":
 		conditions = append(conditions, "t.amount_cents < 0")
 	case "in":
 		conditions = append(conditions, "t.amount_cents > 0")
+	case "spend":
+		conditions = append(conditions, spendCondition, "a.currency = 'USD'")
+	case "income":
+		conditions = append(conditions, incomeCondition, "a.currency = 'USD'")
+	case "overview":
+		conditions = append(conditions, "(("+spendCondition+") OR ("+incomeCondition+"))", "a.currency = 'USD'")
 	}
 	if len(conditions) == 0 {
 		return "", nil

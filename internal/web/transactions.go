@@ -80,6 +80,7 @@ func transactionFilters(values url.Values) (ledger.TransactionFilters, error) {
 		From:      values.Get("from"),
 		To:        values.Get("to"),
 		Search:    strings.TrimSpace(values.Get("search")),
+		Merchant:  values.Get("merchant"),
 		Direction: values.Get("direction"),
 		Page:      1,
 	}
@@ -106,7 +107,9 @@ func transactionFilters(values url.Values) (ledger.TransactionFilters, error) {
 	if filters.To != "" && filters.From > filters.To {
 		return filters, errors.New("The end date must be on or after the start date.")
 	}
-	if filters.Direction != "" && filters.Direction != "in" && filters.Direction != "out" {
+	switch filters.Direction {
+	case "", "in", "out", "spend", "income":
+	default:
 		return filters, errors.New("Select a valid direction.")
 	}
 	if utf8.RuneCountInString(filters.Search) > 200 {

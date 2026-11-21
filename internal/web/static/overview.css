@@ -1,0 +1,378 @@
+.overview-title {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.overview-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.overview-filters {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.4fr) minmax(120px, .7fr) minmax(160px, .9fr) auto;
+  align-items: end;
+  gap: 14px;
+  padding: 18px 22px;
+}
+
+.overview-filters label, .overview-filters input, .overview-filters select {
+  min-width: 0;
+}
+
+.report-status, .report-empty {
+  margin-top: 20px;
+}
+
+.report-empty {
+  padding: 35px 20px;
+}
+
+.spend-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 20px 0 0;
+  overflow: hidden;
+}
+
+.spend-summary > div {
+  padding: 18px 22px;
+}
+
+.spend-summary > div + div {
+  border-left: 1px solid var(--border);
+}
+
+.spend-summary dt, .spend-summary .stat-note, .chart-empty, .spend-method {
+  color: var(--muted);
+  font-size: .875rem;
+}
+
+.spend-summary dd {
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.045em;
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.spend-summary .stat-note {
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+.report-card {
+  padding: 21px 22px;
+  min-width: 0;
+}
+
+.monthly-card, .breakdown {
+  margin-top: 18px;
+}
+
+.chart-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.monthly-footer a {
+  color: var(--forest);
+  font-size: .875rem;
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+.monthly-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 20px;
+  margin-top: 14px;
+}
+
+.monthly-footer .spend-method {
+  flex: 1 1 520px;
+  margin-top: 0;
+}
+
+.monthly-empty {
+  display: grid;
+  place-items: center;
+  min-height: 185px;
+  padding: 16px;
+  text-align: center;
+  color: var(--muted);
+  background: #f4f7f4;
+  border-radius: 6px;
+}
+
+.monthly-scroll {
+  --plot-height: 185px;
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 2px 4px;
+}
+
+.month-axis {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  justify-content: space-between;
+  margin-top: -.45em;
+  height: calc(var(--plot-height) + .9em);
+  color: var(--muted);
+  font-size: .75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.monthly-bars {
+  position: relative;
+  display: flex;
+  flex: 1 0 auto;
+  justify-content: space-around;
+  gap: 6px;
+  margin: 0;
+  padding: 0 5px;
+  list-style: none;
+  background: repeating-linear-gradient(to bottom, #dce5dc 0 1px, transparent 1px 25%) top / 100% var(--plot-height) no-repeat,
+    linear-gradient(#c2cec3, #c2cec3) 0 var(--plot-height) / 100% 1px no-repeat;
+}
+
+.month-column {
+  display: grid;
+  flex: 1 0 42px;
+  min-width: 0;
+  grid-template-rows: var(--plot-height) auto;
+  text-align: center;
+}
+
+.month-mark {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.month-pair {
+  display: flex;
+}
+
+.grouped-bars .month-column {
+  flex-basis: 58px;
+}
+
+.grouped-bars .month-fill {
+  width: min(85%, 44px);
+}
+
+.grouped-bars .bar-income {
+  justify-content: flex-end;
+  padding-right: 2px;
+}
+
+.grouped-bars .bar-spend {
+  justify-content: flex-start;
+  padding-left: 2px;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chart-legend button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--muted);
+  font-size: .875rem;
+  font-weight: 600;
+}
+
+.chart-legend button[aria-pressed="true"] {
+  background: #edf3ef;
+  border-color: #aabeb3;
+  color: #243f33;
+}
+
+.chart-legend button::before {
+  content: "";
+  width: 11px;
+  height: 11px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+}
+
+.month-fill {
+  width: min(65%, 62px);
+  border-radius: 5px 5px 0 0;
+}
+
+.month-mark[href] .month-fill {
+  min-height: 2px;
+}
+
+.bar-income .month-fill, .legend-income[aria-pressed="true"]::before {
+  background: #4d799a;
+}
+
+.bar-spend .month-fill, .legend-spend[aria-pressed="true"]::before {
+  background: var(--forest);
+}
+
+.month-mark[href]:hover {
+  background: #e7efe8a6;
+}
+
+.month-label {
+  color: var(--muted);
+  font-size: .75rem;
+  padding-top: 10px;
+  white-space: nowrap;
+}
+
+.breakdown {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.account-report .chart-heading {
+  margin-bottom: 4px;
+}
+
+.chart-scope {
+  color: var(--muted);
+  font-size: .875rem;
+  margin-bottom: 12px;
+}
+
+.rank-chart {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rank-chart li + li {
+  margin-top: 7px;
+}
+
+.rank-link {
+  display: block;
+  padding: 5px 4px 7px;
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.rank-link:hover {
+  background: #eef4ee;
+}
+
+.overview a:focus-visible {
+  outline: 2px solid #438970;
+  outline-offset: 2px;
+}
+
+.rank-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+  font-size: .9rem;
+}
+
+.rank-label {
+  overflow-wrap: anywhere;
+}
+
+.rank-amount {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rank-rail, .rank-fill {
+  display: block;
+  height: 7px;
+  border-radius: 6px;
+}
+
+.rank-rail {
+  background: #e8eee8;
+}
+
+.rank-fill {
+  min-width: 2px;
+  background: #42735b;
+}
+
+#merchant-chart .rank-fill {
+  background: #9a694e;
+}
+
+#account-chart .rank-fill {
+  background: #4b7282;
+}
+
+#show-categories {
+  margin-top: 12px;
+}
+
+.spend-method {
+  margin-top: 14px;
+  line-height: 1.5;
+}
+
+@media (max-width: 1050px) {
+  .breakdown {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .account-report {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 700px) {
+  .overview-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .breakdown {
+    grid-template-columns: 1fr;
+  }
+  .account-report {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 500px) {
+  .spend-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .spend-summary > div:last-child {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+    grid-column: span 2;
+  }
+  .report-card, .spend-summary > div, .overview-filters {
+    padding-inline: 15px;
+  }
+}
