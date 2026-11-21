@@ -192,25 +192,6 @@
   overflow-wrap: anywhere;
 }
 
-.danger {
-  background: #993d33;
-  color: white;
-  border: 1px solid #993d33;
-  border-radius: 7px;
-  min-height: 40px;
-  padding: 9px 16px;
-  font-size: .9rem;
-  font-weight: 600;
-}
-
-.danger:hover:enabled {
-  background: #802e26;
-}
-
-.danger:disabled {
-  opacity: .6;
-}
-
 .ledger-pager {
   justify-content: flex-end;
   border-top: 1px solid var(--border);

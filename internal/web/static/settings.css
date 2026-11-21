@@ -1,0 +1,49 @@
+.data-settings {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 24px;
+}
+
+.data-settings p, #reset-description {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.data-settings p {
+  margin-top: 6px;
+}
+
+.reset-status {
+  margin-top: 16px;
+  padding: 12px 16px;
+  color: #205335;
+  background: #e4f2e5;
+  border-radius: 7px;
+}
+
+#reset-dialog {
+  width: min(30rem, calc(100% - 32px));
+  padding: 24px;
+  color: inherit;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+#reset-dialog::backdrop {
+  background: rgb(16 40 32 / 48%);
+}
+
+#confirm-reset {
+  display: grid;
+  gap: 14px;
+}
+
+.reset-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}

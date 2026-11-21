@@ -41,6 +41,10 @@ func handler(db *sql.DB, save saveFunc, categories categoryLookup) http.Handler 
 	mux.HandleFunc("GET /transactions", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFileFS(w, r, static, "transactions.html")
 	})
+	mux.HandleFunc("GET /settings", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFileFS(w, r, static, "settings.html")
+	})
+	mux.HandleFunc("POST /api/settings/reset", resetHandler(db))
 	mux.HandleFunc("GET /api/spending", spendingHandler(db))
 	mux.HandleFunc("GET /api/transactions", transactionHandler(db))
 	mux.HandleFunc("PATCH /api/transactions/{id}", transactionEditHandler(db))

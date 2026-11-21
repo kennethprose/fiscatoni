@@ -16,6 +16,10 @@ Choose **Transactions** to view imported transactions, newest first. Filter by a
 
 Use **Edit category** on a saved row to choose an existing category, add a new one, or clear the category. The edit applies to that transaction. Use **Delete** and confirm to remove a row. If you import the same file again into the same account, the importer reviews the deleted rows while preserving the other rows and previous skip decisions.
 
+## Reset the ledger
+
+Open **Settings**, select **Delete all data**, then confirm in the dialog. This clears all accounts, transactions, categories, import history, and remembered merchant rules. You can add accounts and import statements again from **Imports**.
+
 ## Import in the browser
 
 Set `MYSQL_PASSWORD` in a local `.env` file before first startup, then run `docker compose up -d --build --wait`. Open [Fiscatoni](http://127.0.0.1:8080) and choose **Imports**. To choose another host port, set `FISCATONI_PORT` in the same file.

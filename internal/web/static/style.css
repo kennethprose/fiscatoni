@@ -29,7 +29,8 @@ label{display:grid;gap:6px;font-size:.88rem;font-weight:600}input,select{width:1
 @media(max-width:480px){
   .bar-inner{height:auto;flex-wrap:wrap;row-gap:0}
   .bar .brand{min-height:48px}
-  .main-nav{width:100%;min-height:39px}
+  .main-nav{width:100%;min-height:39px;flex-wrap:wrap;row-gap:0}
+  .main-nav a,.main-nav button{min-height:39px}
 }
 .account-picker{display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px}.account-picker .account{width:min(100%,350px)}
 .category-picker{display:grid;gap:5px;min-width:11rem;max-width:18rem}
@@ -47,3 +48,22 @@ label{display:grid;gap:6px;font-size:.88rem;font-weight:600}input,select{width:1
 #new-account{display:grid;gap:14px}#new-account h3{font-size:1rem}
 #new-account button{justify-self:start}#account-status:not(:empty){margin-top:12px}
 @media(max-width:480px){.bar-inner{column-gap:16px}.local{font-size:.75rem}.nav-button{font-size:.85rem}}
+
+.danger {
+  background: #993d33;
+  color: white;
+  border: 1px solid #993d33;
+  border-radius: 7px;
+  min-height: 40px;
+  padding: 9px 16px;
+  font-size: .9rem;
+  font-weight: 600;
+}
+
+.danger:hover:enabled {
+  background: #802e26;
+}
+
+.danger:disabled {
+  opacity: .6;
+}

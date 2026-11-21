@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173d35">
+  <title>Settings · Fiscatoni</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/settings.css">
+  <script src="/settings.js" defer></script>
+</head>
+<body>
+  <header class="bar">
+    <div class="bar-inner">
+      <a class="brand" href="/"><i class="logo" aria-hidden="true"></i>Fiscatoni</a>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="/">Overview</a>
+        <a href="/transactions">Transactions</a>
+        <a href="/imports">Imports</a>
+        <a href="/settings" aria-current="page">Settings</a>
+      </nav>
+      <span class="local"><i></i> Local instance</span>
+    </div>
+  </header>
+  <main>
+    <div class="page-title"><h1>Settings</h1></div>
+    <section class="card data-settings" aria-labelledby="data-title">
+      <div>
+        <h2 id="data-title">Ledger data</h2>
+        <p>Clear the ledger and start over with an empty Fiscatoni instance.</p>
+      </div>
+      <button class="danger" id="open-reset" type="button" aria-haspopup="dialog">Delete all data</button>
+    </section>
+    <p class="reset-status" id="reset-status" role="status" hidden></p>
+  </main>
+  <dialog id="reset-dialog" aria-labelledby="reset-title" aria-describedby="reset-description">
+    <form id="confirm-reset">
+      <h2 id="reset-title">Delete all data?</h2>
+      <p id="reset-description">This permanently removes all accounts, transactions, categories, import history, and remembered merchant rules.</p>
+      <p class="error" id="reset-error" role="alert" hidden></p>
+      <div class="reset-actions">
+        <button class="secondary" id="cancel-reset" type="button" autofocus>Cancel</button>
+        <button class="danger" id="submit-reset" type="submit">Permanently delete data</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
