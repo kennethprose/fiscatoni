@@ -93,6 +93,37 @@
         <button class="secondary" type="submit">Update preview</button>
       </form>
     </section>
+    <section class="card review merchant-review" id="merchant-review" aria-labelledby="merchant-title" hidden>
+      <div class="section-head">
+        <div>
+          <h2 id="merchant-title">Categorize by merchant</h2>
+          <p>Choose a category once to apply it to every transaction from that merchant in this file.</p>
+        </div>
+        <span id="merchant-count" class="count" aria-live="polite"></span>
+      </div>
+      <label class="merchant-filter">
+        <input id="merchants-without-rules" type="checkbox" aria-controls="merchant-table">
+        Only merchants without a matching rule
+      </label>
+      <div class="table-wrap" id="merchant-table" role="region" aria-label="Merchant categories" tabindex="0">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Merchant</th>
+              <th scope="col">Transactions</th>
+              <th scope="col">Category</th>
+            </tr>
+          </thead>
+          <tbody id="merchant-rows"></tbody>
+        </table>
+      </div>
+      <p id="merchant-empty" class="empty" hidden>Every merchant in this file has a matching rule.</p>
+      <div class="pages" id="merchant-pages" hidden>
+        <button type="button" class="secondary" id="merchant-prev" aria-label="Previous merchants">Previous</button>
+        <span id="merchant-page-info" aria-live="polite"></span>
+        <button type="button" class="secondary" id="merchant-next" aria-label="Next merchants">Next</button>
+      </div>
+    </section>
     <section class="card review">
       <div class="section-head">
         <div>

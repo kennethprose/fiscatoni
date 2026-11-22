@@ -5,73 +5,134 @@ const names = { chase: "Chase", capitalone: "CapitalOne", "robinhood": "Robinhoo
 const fields = { Date: "Transaction date", Description: "Description", Category: "Category", Amount: "Amount", Debit: "Debit", Credit: "Credit", Posted: "Posting date", Merchant: "Merchant", Type: "Transaction type", Status: "Status", Time: "Time", Memo: "Memo", Card: "Card reference" };
 const optional = ["Posted", "Merchant", "Type", "Status", "Time", "Memo", "Card"];
 const pageSize = 25;
+const merchantFilter = el("merchants-without-rules");
+const merchantFilterKey = "fiscatoni.imports.merchantsWithoutRules";
 let file, inspection, profile, review, rows = [], page = 0, busy = false, saved = false;
 let overlaps = new Set(), decisions = {};
 let accounts = [], categoryEdits = {};
-let categoryNames = [], suggestions = {}, remember = {}, categoryRow;
+let categoryNames = [], suggestions = {}, remember = {}, applyNewCategory;
+let merchants = new Map(), merchantList = [], merchantPage = 0;
 
 function selectedCategory(row) {
   return categoryEdits[row.Line] ?? suggestions[row.Line] ?? row.Category;
 }
 
-function setCategory(row, category) {
-  for (const match of rows) {
-    if (match.MerchantGroup !== row.MerchantGroup) continue;
-    categoryEdits[match.Line] = category;
-    if (!category) delete remember[match.Line];
-  }
-  renderRows();
-  el("category-" + row.Line)?.focus();
+function hasMerchantRule(row) {
+  return Object.hasOwn(suggestions, row.Line);
 }
 
-function categoryPicker(row) {
-  const group = document.createElement("div");
-  group.className = "category-picker";
+function groupMerchants() {
+  merchants.clear();
+  for (const row of rows) {
+    const id = row.MerchantGroup;
+    if (!merchants.has(id)) merchants.set(id, {id, name: row.Merchant || row.Description, rows: []});
+    merchants.get(id).rows.push(row);
+  }
+  merchantList = [...merchants.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function setCategory(merchant, category, focusID) {
+  for (const row of merchant.rows) {
+    categoryEdits[row.Line] = category;
+    if (!category) delete remember[row.Line];
+  }
+  renderMerchants();
+  renderRows();
+  el(focusID)?.focus({preventScroll: true});
+}
+
+function merchantCategory(merchant) {
+  const value = selectedCategory(merchant.rows[0]);
+  return merchant.rows.every(row => selectedCategory(row) === value) ? value : null;
+}
+
+function categorySource(row) {
+  const hint = document.createElement("small");
+  hint.className = "category-source";
+  if (Object.hasOwn(categoryEdits, row.Line)) {
+    hint.textContent = "Edited in review";
+    hint.dataset.source = "edited";
+  } else if (hasMerchantRule(row)) {
+    hint.textContent = "Merchant rule applied";
+    hint.dataset.source = "rule";
+  } else {
+    hint.textContent = row.Category ? "From CSV file" : "No category supplied";
+  }
+  return hint;
+}
+
+function categorySelect(merchant, row, value) {
   const select = document.createElement("select");
-  select.id = "category-" + row.Line;
-  select.setAttribute("aria-label", "Category for line " + row.Line);
+  select.id = row ? "category-" + row.Line : "merchant-category-" + merchant.id;
+  select.setAttribute("aria-label", row ? "Category for line " + row.Line : "Category for merchant " + merchant.name);
   select.add(new Option("Uncategorized", ""));
   for (const name of categoryNames) select.add(new Option(name, name));
-  const value = selectedCategory(row);
-  if ([...value].length > 128) {
-    const original = new Option(value, value);
-    original.disabled = true;
-    select.add(original);
-  }
   const add = new Option("Add a new category…", "");
   select.add(add);
-  select.value = value;
+  if (value === null || [...value].length > 128) {
+    const original = new Option(value ?? "Mixed categories", value ?? "");
+    original.disabled = true;
+    select.add(original, 0);
+    original.selected = true;
+  } else select.value = value;
+  const current = select.selectedOptions[0];
+  const apply = category => setCategory(merchant, category, select.id);
   select.onchange = () => {
     if (select.selectedOptions[0] === add) {
-      select.value = value;
-      categoryRow = row;
+      current.selected = true;
+      applyNewCategory = apply;
       el("category-name").value = "";
       el("category-name").setCustomValidity("");
       el("category-dialog").showModal();
       el("category-name").focus();
-    } else setCategory(row, select.value);
+    } else apply(select.value);
   };
-  group.append(select);
-  if (suggestions[row.Line] && value === suggestions[row.Line]) {
-    const hint = document.createElement("small");
-    hint.textContent = "Merchant rule applied";
-    group.append(hint);
-  }
+  return select;
+}
+
+function updateRememberCheck(checkbox, members) {
+  if (!checkbox) return;
+  checkbox.checked = members.every(row => !!remember[row.Line]);
+  checkbox.indeterminate = !checkbox.checked && members.some(row => !!remember[row.Line]);
+}
+
+function rememberPicker(merchant, row, value) {
   const label = document.createElement("label");
   label.className = "remember-category";
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
+  checkbox.id = row ? "remember-line-" + row.Line : "remember-merchant-" + merchant.id;
   checkbox.disabled = !value || [...value].length > 128;
-  checkbox.checked = !!remember[row.Line];
-  const merchant = row.Merchant || row.Description;
-  checkbox.setAttribute("aria-label", "Remember category for " + merchant + " on line " + row.Line);
-  label.title = "Use this category on future imports matching " + merchant;
+  const members = row ? [row] : merchant.rows;
+  updateRememberCheck(checkbox, members);
+  const name = row ? (row.Merchant || row.Description) + " on line " + row.Line : "merchant " + merchant.name;
+  checkbox.setAttribute("aria-label", "Remember category for " + name);
+  label.title = "Use this category on future imports matching " + merchant.name;
   checkbox.onchange = () => {
-    if (checkbox.checked) remember[row.Line] = true;
-    else delete remember[row.Line];
+    for (const member of members) {
+      if (checkbox.checked) remember[member.Line] = true;
+      else delete remember[member.Line];
+    }
+    if (row) {
+      updateRememberCheck(el("remember-merchant-" + merchant.id), merchant.rows);
+    } else {
+      for (const member of visibleRows()) {
+        if (member.MerchantGroup === merchant.id) el("remember-line-" + member.Line).checked = checkbox.checked;
+      }
+    }
   };
   label.append(checkbox, document.createTextNode("Remember for merchant"));
-  group.append(label);
+  return label;
+}
+
+function categoryPicker(merchant, row) {
+  const group = document.createElement("div");
+  group.className = "category-picker";
+  const value = row ? selectedCategory(row) : merchantCategory(merchant);
+  if (saved) group.textContent = value === null ? "Mixed categories" : value || "Uncategorized";
+  else group.append(categorySelect(merchant, row, value));
+  if (row) group.append(categorySource(row));
+  if (!saved) group.append(rememberPicker(merchant, row, value));
   return group;
 }
 
@@ -87,7 +148,7 @@ el("new-category").onsubmit = event => {
   const existing = categoryNames.find(item => item.toLowerCase() === name.toLowerCase());
   if (!existing) { categoryNames.push(name); categoryNames.sort((a, b) => a.localeCompare(b)); }
   el("category-dialog").close();
-  setCategory(categoryRow, existing || name);
+  applyNewCategory(existing || name);
 };
 
 function chooseAccounts(preferred = el("account").value) {
@@ -197,6 +258,7 @@ function setBusy(value) {
   el("add-destination").disabled = value || saved;
   el("manage-accounts").disabled = value;
   el("rows").inert = value;
+  el("merchant-review").inert = value;
   refreshSave();
 }
 function refreshSave() {
@@ -231,13 +293,44 @@ function cell(tr, text, cls) {
   if (cls) td.className = cls;
   return td;
 }
+function visibleRows() {
+  const start = page * pageSize;
+  return rows.slice(start, start + pageSize);
+}
+function renderMerchants() {
+  const visible = merchantFilter.checked ?
+    merchantList.filter(merchant => !hasMerchantRule(merchant.rows[0])) : merchantList;
+  const total = visible.length;
+  el("merchant-review").hidden = merchantList.length === 0;
+  el("merchant-table").hidden = total === 0;
+  el("merchant-empty").hidden = total > 0;
+  el("merchant-count").textContent = total.toLocaleString() + (total === 1 ? " merchant" : " merchants");
+  const tbody = el("merchant-rows");
+  tbody.replaceChildren();
+  const start = merchantPage * pageSize;
+  for (const merchant of visible.slice(start, start + pageSize)) {
+    const tr = tbody.insertRow();
+    cell(tr, merchant.name);
+    cell(tr, merchant.rows.length.toLocaleString());
+    cell(tr, "").append(categoryPicker(merchant));
+  }
+  el("merchant-pages").hidden = total <= pageSize;
+  el("merchant-page-info").textContent = (start + 1) + "–" + Math.min(start + pageSize, total) + " of " + total;
+  el("merchant-prev").disabled = merchantPage === 0;
+  el("merchant-next").disabled = start + pageSize >= total;
+}
+function showMerchantPage(nextPage) {
+  merchantPage = nextPage;
+  renderMerchants();
+  el("merchant-table").scrollTop = 0;
+}
 function renderRows() {
   el("rows").replaceChildren();
   el("empty").hidden = rows.length > 0;
   el("count").textContent = rows.length.toLocaleString() + (rows.length === 1 ? " row" : " rows");
   el("decision-head").hidden = !overlaps.size;
   const start = page * pageSize;
-  for (const row of rows.slice(start, start + pageSize)) {
+  for (const row of visibleRows()) {
     const tr = el("rows").insertRow();
     cell(tr, row.Line); cell(tr, row.Date);
     const desc = cell(tr, "");
@@ -251,8 +344,7 @@ function renderRows() {
       details.append(item);
     }
     if (details.children.length > 1) desc.append(details); else desc.textContent = title.textContent;
-    const categoryCell = cell(tr, selectedCategory(row) || "Uncategorized");
-    if (!saved) categoryCell.replaceChildren(categoryPicker(row));
+    cell(tr, "").append(categoryPicker(merchants.get(row.MerchantGroup), row));
     cell(tr, money(row.Cents), "money" + (BigInt(row.Cents) > 0n ? " credit" : ""));
     if (overlaps.size) {
       const td = cell(tr, "");
@@ -276,8 +368,9 @@ function renderRows() {
 }
 function invalidate() {
   review = ""; rows = []; page = 0; decisions = {}; overlaps.clear(); saved = false;
+  merchants.clear(); merchantList = []; merchantPage = 0;
   el("empty").querySelector("p").textContent = file ? "Apply the column mapping to preview this file." : "Choose a CSV file to get started.";
-  message(""); renderRows();
+  message(""); renderMerchants(); renderRows();
 }
 function showMapping(open) {
   el("mapping").hidden = !open;
@@ -342,9 +435,11 @@ async function preview() {
     suggestions = result.categories.suggestions;
     categoryNames = [...new Set([...result.categories.names, ...rows.map(row => row.Category),
     ...Object.values(suggestions), ...Object.values(categoryEdits)].filter(name => name && [...name].length <= 128))].sort((a, b) => a.localeCompare(b));
+    groupMerchants();
+    renderMerchants();
     renderRows();
     chooseAccounts();
-    el("summary").textContent = "Amounts are in USD. Negative amounts represent spending. Category changes apply to every matching merchant in this import.";
+    el("summary").textContent = "Amounts are in USD. Negative amounts represent spending.";
   } catch (error) { showMapping(true); message(error.message); }
 }
 async function load(selected) {
@@ -388,13 +483,28 @@ el("mapping").onsubmit = async event => {
 el("account").onchange = () => { if (overlaps.size) clearDecisions(); refreshSave(); };
 el("prev").onclick = () => { page--; renderRows(); };
 el("next").onclick = () => { page++; renderRows(); };
+try {
+  merchantFilter.checked = localStorage.getItem(merchantFilterKey) === "true";
+} catch {
+  // Browser settings can block access to storage.
+}
+merchantFilter.onchange = () => {
+  try {
+    localStorage.setItem(merchantFilterKey, String(merchantFilter.checked));
+  } catch {
+    // Keep filtering the current preview if storage is unavailable.
+  }
+  showMerchantPage(0);
+};
+el("merchant-prev").onclick = () => showMerchantPage(merchantPage - 1);
+el("merchant-next").onclick = () => showMerchantPage(merchantPage + 1);
 el("save").onclick = async () => {
   if (!review || busy || saved) return;
   setBusy(true); message("");
   try {
     const reviewedCategories = { ...suggestions, ...categoryEdits };
     const result = await request("save", { profile: JSON.stringify(profile), review, accountID: el("account").value, categories: JSON.stringify(reviewedCategories), remember: JSON.stringify(remember), decisions: JSON.stringify(decisions) });
-    saved = true; overlaps.clear(); decisions = {}; renderRows(); showMapping(false);
+    saved = true; overlaps.clear(); decisions = {}; renderMerchants(); renderRows(); showMapping(false);
     message(result.AlreadyImported ? "This file was already saved in batch " + result.ID + "." :
       "Saved to " + el("account").selectedOptions[0].text + " · " + result.Added + " added, " + result.Skipped + " skipped (batch " + result.ID + ").", true);
   } catch (error) {

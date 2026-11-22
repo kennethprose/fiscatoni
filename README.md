@@ -40,7 +40,11 @@ Open **Accounts** to save a bank and account name to your local profile. Account
 
 Drop a CSV or choose a file. A known bank layout opens a transaction preview. Use **Edit column mapping** to adjust the interpretation, or map an unfamiliar file using its headers and sample values. Use **Update preview** after changing a mapping. Choose a **Destination account** for that bank, or use **Add account** during the import. When the bank has one saved account, the importer selects it automatically.
 
-Review each signed USD amount and category. Changing or clearing a category updates every transaction from that merchant in the current import, including rows on other preview pages. Use **Add a new category…** to create a category from the menu. Categories become available for later imports when you save a transaction using them.
+Use **Categorize by merchant** to review each unique merchant and the number of transactions from it. A merchant shows **Mixed categories** when its rows have different categories. Changing or clearing a category in either preview updates all rows from that merchant in the current import, including rows on other pages. Use **Add a new category…** to create a category from the menu. Categories become available for later imports when you save a transaction using them.
+
+Check **Only merchants without a matching rule** to show merchants that have neither an exact-name nor a regex rule match, including merchants with a category from the CSV. The browser remembers the checkbox setting for future visits.
+
+In **Transaction preview**, each row shows whether its category came from a merchant rule, the CSV file, or an edit during review. Rows with a blank CSV category and no rule show **No category supplied**.
 
 Check **Remember for merchant** to use that category on future imports across your accounts. Matching uses the merchant field, or the full description when the export omits a merchant. It ignores case and differences in whitespace. A remembered category takes precedence over the bank category. Check the box again to update an existing rule.
 
