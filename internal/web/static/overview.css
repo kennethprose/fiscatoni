@@ -14,7 +14,7 @@
 
 .overview-filters {
   display: grid;
-  grid-template-columns: minmax(160px, 1.4fr) minmax(120px, .7fr) minmax(160px, .9fr) auto;
+  grid-template-columns: minmax(145px, 1.4fr) repeat(2, minmax(140px, 1fr)) auto;
   align-items: end;
   gap: 14px;
   padding: 18px 22px;
@@ -124,6 +124,17 @@
   padding: 4px 2px 4px;
 }
 
+.monthly-pages {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: .875rem;
+}
+
 .month-axis {
   display: flex;
   flex: none;
@@ -219,6 +230,34 @@
   color: #243f33;
 }
 
+.chart-type {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f4f7f4;
+}
+
+.chart-type button {
+  min-height: 32px;
+  min-width: 42px;
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: .8rem;
+  font-weight: 600;
+}
+
+.chart-type button[aria-pressed="true"] {
+  border-color: #aabeb3;
+  background: #fff;
+  color: var(--forest);
+}
+
 .chart-legend button::before {
   content: "";
   width: 11px;
@@ -305,6 +344,56 @@
 
 .rank-link:hover {
   background: #eef4ee;
+}
+
+.spend-pie {
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.spend-pie svg {
+  display: block;
+  width: min(100%, 11.5rem);
+  margin-inline: auto;
+}
+
+.spend-pie path, .spend-pie circle {
+  stroke: #fff;
+  stroke-width: 1.5px;
+}
+
+.spend-pie a:hover {
+  opacity: .8;
+}
+
+.pie-legend .rank-line {
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.pie-key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pie-swatch {
+  flex: none;
+  width: .65rem;
+  height: .65rem;
+  border-radius: 50%;
+}
+
+.pie-value {
+  flex: none;
+  text-align: right;
+}
+
+.pie-share {
+  display: block;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .overview a:focus-visible {

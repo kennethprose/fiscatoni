@@ -2,12 +2,25 @@ package web
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
 	"fiscatoni/internal/ledger"
 )
+
+func spendingMonth(raw string) (time.Time, error) {
+	if raw == "" {
+		return time.Time{}, nil
+	}
+	const layout = "2006-01"
+	month, err := time.Parse(layout, raw)
+	if err != nil || month.Year() < 1000 || month.Format(layout) != raw {
+		return time.Time{}, errors.New("invalid month")
+	}
+	return month, nil
+}
 
 func spendingHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -24,22 +37,27 @@ func spendingHandler(db *sql.DB) http.HandlerFunc {
 		months := 6
 		if raw := values.Get("months"); raw != "" {
 			count, err := strconv.Atoi(raw)
-			if err != nil || count < 1 || count > 12 {
-				problem(w, 400, "Select a period of up to 12 months.")
+			if err != nil || count < 1 || count > (9999-1000+1)*12 {
+				problem(w, 400, "Enter a valid number of months.")
 				return
 			}
 			months = count
 		}
-		var end time.Time
-		if raw := values.Get("end"); raw != "" {
-			month, err := time.Parse("2006-01", raw)
-			if err != nil || month.Year() < 1000 || month.Format("2006-01") != raw {
-				problem(w, 400, "Enter a valid ending month.")
-				return
-			}
-			end = month
+		start, err := spendingMonth(values.Get("start"))
+		if err != nil {
+			problem(w, 400, "Enter a valid starting month.")
+			return
 		}
-		report, err := ledger.Spending(r.Context(), db, account, end, months)
+		end, err := spendingMonth(values.Get("end"))
+		if err != nil {
+			problem(w, 400, "Enter a valid ending month.")
+			return
+		}
+		if !start.IsZero() && (end.IsZero() || start.After(end)) {
+			problem(w, 400, "Choose an ending month on or after the starting month.")
+			return
+		}
+		report, err := ledger.Spending(r.Context(), db, account, start, end, months)
 		if err != nil {
 			problem(w, 503, "Could not load spending. Try again.")
 			return

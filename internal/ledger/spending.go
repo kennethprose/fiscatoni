@@ -18,6 +18,7 @@ type AccountSpending struct {
 }
 
 type SpendingReport struct {
+	Start      string            `json:"start"`
 	End        string            `json:"end"`
 	Months     []SpendGroup      `json:"months"`
 	Income     []SpendGroup      `json:"income"`
@@ -31,7 +32,7 @@ const totalIncome = "SUM(CAST(t.amount_cents AS DECIMAL(20,0)))"
 
 // Spending aggregates the same outgoing transactions available in the ledger's
 // spending filter. Totals use DECIMAL and cross the JSON boundary as strings.
-func Spending(ctx context.Context, db *sql.DB, accountID int64, end time.Time, months int) (SpendingReport, error) {
+func Spending(ctx context.Context, db *sql.DB, accountID int64, start, end time.Time, months int) (SpendingReport, error) {
 	report := SpendingReport{}
 	if err := ensureSchema(ctx, db); err != nil {
 		return report, err
@@ -61,11 +62,14 @@ func Spending(ctx context.Context, db *sql.DB, accountID int64, end time.Time, m
 		}
 	}
 	const monthLayout = "2006-01"
-	report.End = end.Format(monthLayout)
-	start := end.AddDate(0, 1-months, 0)
-	if start.Year() < 1000 {
-		start = time.Date(1000, 1, 1, 0, 0, 0, 0, time.UTC)
+	if start.IsZero() {
+		start = end.AddDate(0, 1-months, 0)
+		if start.Year() < 1000 {
+			start = time.Date(1000, 1, 1, 0, 0, 0, 0, time.UTC)
+		}
 	}
+	report.Start = start.Format(monthLayout)
+	report.End = end.Format(monthLayout)
 	filters.From = start.Format(time.DateOnly)
 	filters.To = end.AddDate(0, 1, -1).Format(time.DateOnly)
 	filters.Direction = "income"

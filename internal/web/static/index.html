@@ -34,10 +34,8 @@
       <label for="report-account">Account
         <select id="report-account" name="account"><option value="">All accounts</option></select>
       </label>
-      <label for="report-months">Period
-        <select id="report-months" name="months">
-          <option value="3">3 months</option><option value="6" selected>6 months</option><option value="12">12 months</option>
-        </select>
+      <label for="report-start">Starting month
+        <input id="report-start" name="start" type="month" min="1000-01" max="9999-12" placeholder="YYYY-MM" pattern="[0-9]{4}-[0-9]{2}">
       </label>
       <label for="report-end">Ending month
         <input id="report-end" name="end" type="month" min="1000-01" max="9999-12" placeholder="YYYY-MM" pattern="[0-9]{4}-[0-9]{2}">
@@ -68,6 +66,11 @@
           </div>
         </div>
         <div class="monthly-scroll" id="monthly-chart" role="region" aria-label="Monthly totals" tabindex="0"></div>
+        <div class="monthly-pages" id="monthly-pages" role="group" aria-label="Monthly chart pages" hidden>
+          <button id="monthly-previous" class="secondary" type="button">Earlier months</button>
+          <span id="monthly-page-range" aria-live="polite"></span>
+          <button id="monthly-next" class="secondary" type="button">Later months</button>
+        </div>
         <p class="monthly-empty" id="monthly-empty" role="status" hidden>Turn on Income, Spending, or Net savings to see monthly totals.</p>
         <div class="monthly-footer">
           <p class="spend-method">Net savings is income minus gross spending. Income comes from credits identified by their imported type or categorized as Income. Refunds, payments, and transfers identified by type are excluded.</p>
@@ -76,13 +79,27 @@
       </section>
       <div class="breakdown">
         <section class="card report-card account-report" aria-labelledby="account-title">
-          <div class="chart-heading"><h2 id="account-title">Spending by account</h2></div>
+          <div class="chart-heading">
+            <h2 id="account-title">Spending by account</h2>
+            <div class="chart-type" role="group" aria-label="Account chart type">
+              <button type="button" data-chart-kind="account" data-chart-type="bar" aria-pressed="true">Bar</button>
+              <button type="button" data-chart-kind="account" data-chart-type="pie" aria-pressed="false">Pie</button>
+            </div>
+          </div>
           <p class="chart-scope">All accounts in this period</p>
+          <div id="account-pie" class="spend-pie" hidden></div>
           <ul class="rank-chart" id="account-chart"></ul>
           <p id="account-empty" class="chart-empty" hidden>No USD accounts yet.</p>
         </section>
         <section class="card report-card" aria-labelledby="category-title">
-          <div class="chart-heading"><h2 id="category-title">Spending by category</h2></div>
+          <div class="chart-heading">
+            <h2 id="category-title">Spending by category</h2>
+            <div class="chart-type" role="group" aria-label="Category chart type">
+              <button type="button" data-chart-kind="category" data-chart-type="bar" aria-pressed="true">Bar</button>
+              <button type="button" data-chart-kind="category" data-chart-type="pie" aria-pressed="false">Pie</button>
+            </div>
+          </div>
+          <div id="category-pie" class="spend-pie" hidden></div>
           <ul class="rank-chart" id="category-chart"></ul>
           <p id="category-empty" class="chart-empty" hidden>No spending in this period.</p>
           <button id="show-categories" type="button" class="secondary" aria-expanded="false" aria-controls="category-chart" hidden>Show all categories</button>
