@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,6 +10,7 @@
   <link rel="stylesheet" href="/settings.css">
   <script src="/settings.js" defer></script>
 </head>
+
 <body>
   <header class="bar">
     <div class="bar-inner">
@@ -23,7 +25,33 @@
     </div>
   </header>
   <main>
-    <div class="page-title"><h1>Settings</h1></div>
+    <div class="page-title">
+      <h1>Settings</h1>
+    </div>
+    <section class="card merchant-rules" aria-labelledby="rules-title">
+      <header>
+        <div>
+          <h2 id="rules-title">Merchant rules</h2>
+          <p>Exact names take precedence. Regex rules are checked from top to bottom.</p>
+        </div>
+        <button class="primary" type="button" id="create-rule" aria-haspopup="dialog">Create rule</button>
+      </header>
+      <p class="rules-status" id="rules-status" role="status" hidden></p>
+      <p class="rules-state" id="rules-state" role="status">Loading merchant rules…</p>
+      <button class="secondary rules-retry" id="rules-retry" type="button" hidden>Try again</button>
+      <div class="table-wrap" id="rules-table" hidden>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Merchant or pattern</th>
+              <th scope="col">Category</th>
+              <th scope="col" class="rule-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rules-list"></tbody>
+        </table>
+      </div>
+    </section>
     <section class="card data-settings" aria-labelledby="data-title">
       <div>
         <h2 id="data-title">Ledger data</h2>
@@ -33,10 +61,77 @@
     </section>
     <p class="reset-status" id="reset-status" role="status" hidden></p>
   </main>
+  <dialog id="rule-dialog" aria-labelledby="rule-title" aria-describedby="rule-merchant">
+    <form id="rule-form">
+      <div>
+        <h2 id="rule-title"></h2>
+        <p class="rule-merchant" id="rule-merchant"></p>
+      </div>
+      <label id="rule-kind-field" hidden>Match type
+        <select id="rule-kind">
+          <option value="exact">Exact merchant name</option>
+          <option value="regex">Regular expression</option>
+        </select>
+      </label>
+      <label id="rule-match-field" hidden>
+        <span id="rule-match-label"></span>
+        <input id="rule-match" maxlength="512" autocomplete="off" spellcheck="false">
+      </label>
+      <div class="rule-help" id="rule-pattern-help" hidden>
+        <details>
+          <summary>Regex basics and guides</summary>
+          <ul>
+            <li>Plain text matches those characters. A pattern like <code>STOP &amp; SHOP</code> can match anywhere in
+              the merchant name.</li>
+            <li><code>^</code> and <code>$</code> mark the start and end. Use both to match the whole name.</li>
+            <li><code>[0-9]</code> matches one digit. Add <code>{4}</code> for exactly four digits, or <code>+</code>
+              for one or more.</li>
+            <li>A dot <code>.</code> matches any single character except a newline. Use <code>\.</code> for a literal
+              period.</li>
+          </ul>
+          <p>Fiscatoni ignores case and collapses whitespace in merchant names. Exact-name rules take precedence,
+            followed by the first matching regex in the order shown in Settings.</p>
+          <div class="rule-help-links">
+            <a href="https://regexone.com/" target="_blank" rel="noopener noreferrer">RegexOne interactive tutorial</a>
+            <a href="https://pkg.go.dev/regexp/syntax#hdr-Syntax" target="_blank" rel="noopener noreferrer">Go regex
+              syntax reference</a>
+          </div>
+        </details>
+      </div>
+      <div class="rule-test" id="rule-test" hidden>
+        <button class="secondary" id="test-rule" type="button">Test against history</button>
+        <p class="rule-preview-status" id="rule-preview-status" role="status" hidden></p>
+        <ul class="rule-preview-list" id="rule-preview-list" aria-label="Matching transactions" hidden></ul>
+        <nav class="rule-preview-pages" id="rule-preview-pages" aria-label="Match results" hidden>
+          <button class="secondary" id="rule-preview-prev" type="button">Previous</button>
+          <span id="rule-preview-range"></span>
+          <button class="secondary" id="rule-preview-next" type="button">Next</button>
+        </nav>
+      </div>
+      <label id="rule-category-field">Category
+        <input id="rule-category" list="rule-categories" maxlength="128" autocomplete="off">
+        <datalist id="rule-categories"></datalist>
+      </label>
+      <div id="rule-history-field" hidden>
+        <label class="rule-history">
+          <input id="rule-history" type="checkbox" aria-describedby="rule-history-help">
+          Apply to saved transactions
+        </label>
+        <p class="rule-help" id="rule-history-help">Replace the category on matching transactions across all accounts.</p>
+      </div>
+      <p id="rule-delete-help" hidden>Future imports will use their bank category, if available.</p>
+      <p class="error" id="rule-error" role="alert" hidden></p>
+      <div class="reset-actions">
+        <button class="secondary" id="cancel-rule" type="button">Cancel</button>
+        <button id="submit-rule" type="submit"></button>
+      </div>
+    </form>
+  </dialog>
   <dialog id="reset-dialog" aria-labelledby="reset-title" aria-describedby="reset-description">
     <form id="confirm-reset">
       <h2 id="reset-title">Delete all data?</h2>
-      <p id="reset-description">This permanently removes all accounts, transactions, categories, import history, and remembered merchant rules.</p>
+      <p id="reset-description">This permanently removes all accounts, transactions, categories, import history, and
+        remembered merchant rules.</p>
       <p class="error" id="reset-error" role="alert" hidden></p>
       <div class="reset-actions">
         <button class="secondary" id="cancel-reset" type="button" autofocus>Cancel</button>
@@ -45,4 +140,5 @@
     </form>
   </dialog>
 </body>
+
 </html>

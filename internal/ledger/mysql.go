@@ -17,6 +17,18 @@ var schema = []string{
 	`CREATE TABLE IF NOT EXISTS merchant_categories (
 		merchant_key BINARY(32) PRIMARY KEY, category TEXT NOT NULL
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+	`CREATE TABLE IF NOT EXISTS merchant_rule_names (
+		merchant_key BINARY(32) PRIMARY KEY, merchant_name MEDIUMTEXT NOT NULL,
+		FOREIGN KEY(merchant_key) REFERENCES merchant_categories(merchant_key) ON DELETE CASCADE
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+	`CREATE TABLE IF NOT EXISTS merchant_regex_rules (
+		id BIGINT PRIMARY KEY AUTO_INCREMENT, pattern VARCHAR(512) NOT NULL, category TEXT NOT NULL,
+		UNIQUE(pattern)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin`,
+	`CREATE TABLE IF NOT EXISTS merchant_regex_priorities (
+		rule_id BIGINT PRIMARY KEY, priority BIGINT NOT NULL,
+		FOREIGN KEY(rule_id) REFERENCES merchant_regex_rules(id) ON DELETE CASCADE
+	) ENGINE=InnoDB`,
 	`CREATE TABLE IF NOT EXISTS accounts (
 		id BIGINT PRIMARY KEY AUTO_INCREMENT, bank VARCHAR(64) NOT NULL, label VARCHAR(128) NOT NULL,
 		currency CHAR(3) NOT NULL DEFAULT 'USD', UNIQUE(bank,label)

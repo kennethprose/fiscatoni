@@ -45,6 +45,12 @@ func handler(db *sql.DB, save saveFunc, categories categoryLookup) http.Handler 
 		http.ServeFileFS(w, r, static, "settings.html")
 	})
 	mux.HandleFunc("POST /api/settings/reset", resetHandler(db))
+	mux.HandleFunc("GET /api/settings/merchant-rules", merchantRulesHandler(db))
+	mux.HandleFunc("POST /api/settings/merchant-rules", merchantRuleWriteHandler(db))
+	mux.HandleFunc("POST /api/settings/merchant-rules/test", merchantRuleTestHandler(db))
+	mux.HandleFunc("POST /api/settings/merchant-rules/order", merchantRuleOrderHandler(db))
+	mux.HandleFunc("PATCH /api/settings/merchant-rules/{id}", merchantRuleWriteHandler(db))
+	mux.HandleFunc("DELETE /api/settings/merchant-rules/{id}", merchantRuleWriteHandler(db))
 	mux.HandleFunc("GET /api/spending", spendingHandler(db))
 	mux.HandleFunc("GET /api/transactions", transactionHandler(db))
 	mux.HandleFunc("PATCH /api/transactions/{id}", transactionEditHandler(db))
@@ -123,11 +129,19 @@ func handler(db *sql.DB, save saveFunc, categories categoryLookup) http.Handler 
 				// Send cents as text to preserve all int64 values in JavaScript.
 				type previewRow struct {
 					importer.Row
-					Cents string
+					Cents         string
+					MerchantGroup int
 				}
 				rows := make([]previewRow, len(b.Rows))
+				groups := make(map[string]int)
 				for i, row := range b.Rows {
-					rows[i] = previewRow{row, strconv.FormatInt(row.Cents, 10)}
+					merchant := row.MerchantIdentity()
+					group, exists := groups[merchant]
+					if !exists {
+						group = len(groups) + 1
+						groups[merchant] = group
+					}
+					rows[i] = previewRow{row, strconv.FormatInt(row.Cents, 10), group}
 				}
 				options, err := categories(r.Context(), db, b.Rows)
 				if err != nil {

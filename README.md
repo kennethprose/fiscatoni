@@ -14,11 +14,23 @@ Income includes positive USD transactions with an income-specific imported type 
 
 Choose **Transactions** to view imported transactions, newest first. Filter by account, category, activity date, or money in and out. Search matches the merchant and description. Date filters include both selected days. **Uncategorized** shows transactions with an empty category.
 
-Use **Edit category** on a saved row to choose an existing category, add a new one, or clear the category. The edit applies to that transaction. Use **Delete** and confirm to remove a row. If you import the same file again into the same account, the importer reviews the deleted rows while preserving the other rows and previous skip decisions.
+Use **Edit category** on a saved row to choose an existing category, add a new one, or clear the category. Choose **This transaction only** or **All saved transactions from this merchant**. Merchant-wide edits apply across accounts and dates. Check **Remember for merchant** in the dialog to save or update the category rule for future imports, with either edit scope.
+
+Use **Delete** and confirm to remove a row. If you import the same file again into the same account, the importer reviews the deleted rows while preserving the other rows and previous skip decisions.
 
 ## Reset the ledger
 
 Open **Settings**, select **Delete all data**, then confirm in the dialog. This clears all accounts, transactions, categories, import history, and remembered merchant rules. You can add accounts and import statements again from **Imports**.
+
+## Manage merchant rules
+
+Open **Settings** and find **Merchant rules**. Edit a rule to change the category for future matching imports, or delete it to let those imports use their bank category when available. Older rules show the merchant name when it can be recovered from a saved transaction. Rules labeled **Merchant name unavailable** can still be edited or deleted.
+
+Select **Create rule** to categorize an exact merchant name or a Go regular expression before importing. A pattern like `^STOP & SHOP [0-9]{4}$` matches locations such as `STOP & SHOP 0541` and `STOP & SHOP 4621`. Rules use the merchant field when available and the full description otherwise. Matching ignores case and collapses whitespace in the input.
+
+Exact rules take precedence, followed by the first matching regex in the order shown in Settings. Use the up and down arrows on a regex rule to save a new order. New regex rules start at the bottom.
+
+Select **Apply to saved transactions** when creating or editing a rule to replace the category on matching transactions across all accounts. For a regex, **Test against history** previews the current pattern and flags transactions where another rule takes precedence. Both actions use the current pattern and saved order.
 
 ## Import in the browser
 
@@ -28,9 +40,9 @@ Open **Accounts** to save a bank and account name to your local profile. Account
 
 Drop a CSV or choose a file. A known bank layout opens a transaction preview. Use **Edit column mapping** to adjust the interpretation, or map an unfamiliar file using its headers and sample values. Use **Update preview** after changing a mapping. Choose a **Destination account** for that bank, or use **Add account** during the import. When the bank has one saved account, the importer selects it automatically.
 
-Review each signed USD amount and category. The category menu includes categories from previous imports and the current statement. Choose **Add a new category…** to enter a name and reuse it on other rows in the preview. Categories become available for later imports when you save a transaction using them.
+Review each signed USD amount and category. Changing or clearing a category updates every transaction from that merchant in the current import, including rows on other preview pages. Use **Add a new category…** to create a category from the menu. Categories become available for later imports when you save a transaction using them.
 
-Check **Remember for merchant** to use that category on future imports across your accounts. Matching uses the merchant field, or the full description when the export omits a merchant. It ignores case and differences in whitespace. A remembered category takes precedence over the bank category. You can change a row for this import only, or check the box again to update the rule.
+Check **Remember for merchant** to use that category on future imports across your accounts. Matching uses the merchant field, or the full description when the export omits a merchant. It ignores case and differences in whitespace. A remembered category takes precedence over the bank category. Check the box again to update an existing rule.
 
 Select **Save to MySQL** to commit the import. If existing transactions match, choose **Keep** or **Skip** for each flagged row and save again. Only rows added to the ledger can create or update a merchant rule.
 

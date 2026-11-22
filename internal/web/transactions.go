@@ -50,7 +50,10 @@ func transactionEditHandler(db *sql.DB) http.HandlerFunc {
 		if r.Method == http.MethodDelete {
 			err = ledger.DeleteTransaction(r.Context(), db, id)
 		} else {
-			var details struct{ Category *string }
+			var details struct {
+				Category *string `json:"category"`
+				ledger.CategoryEditOptions
+			}
 			decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
 			if err := decoder.Decode(&details); err != nil || details.Category == nil || decoder.Decode(new(any)) != io.EOF {
 				problem(w, 400, "Enter a category or select Uncategorized.")
@@ -61,10 +64,14 @@ func transactionEditHandler(db *sql.DB) http.HandlerFunc {
 				problem(w, 422, "Use a category of up to 128 characters.")
 				return
 			}
-			err = ledger.UpdateTransactionCategory(r.Context(), db, id, category)
+			err = ledger.UpdateTransactionCategory(r.Context(), db, id, category, details.CategoryEditOptions)
 		}
 		if errors.Is(err, ledger.ErrTransactionNotFound) {
 			problem(w, 404, err.Error())
+			return
+		}
+		if errors.Is(err, ledger.ErrMissingMerchant) || errors.Is(err, ledger.ErrInvalidCategoryEdit) {
+			problem(w, 422, err.Error())
 			return
 		}
 		if err != nil {

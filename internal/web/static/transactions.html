@@ -94,6 +94,16 @@
       <label id="edit-new-label" hidden>New category name
         <input id="edit-new" maxlength="128" autocomplete="off">
       </label>
+      <fieldset class="edit-scope" id="edit-scope" aria-describedby="edit-scope-hint">
+        <legend>Apply to</legend>
+        <label><input type="radio" name="category-scope" id="edit-single" checked>This transaction only</label>
+        <label><input type="radio" name="category-scope" id="edit-merchant">All saved transactions from this merchant</label>
+        <p id="edit-scope-hint">Merchant-wide edits include all accounts and dates.</p>
+      </fieldset>
+      <label class="edit-remember" aria-describedby="edit-remember-hint">
+        <input id="edit-remember" type="checkbox">Remember for merchant
+      </label>
+      <p class="edit-remember-hint" id="edit-remember-hint">Apply this category on future imports from this merchant.</p>
       <p class="error" id="edit-error" role="alert" hidden></p>
       <div class="category-actions">
         <button type="button" class="secondary" id="edit-cancel">Cancel</button>

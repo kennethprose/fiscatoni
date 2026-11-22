@@ -46,6 +46,18 @@ type Row struct {
 	Cents       int64
 }
 
+// MerchantName uses the full description when an export has no merchant.
+func (row Row) MerchantName() string {
+	if row.Merchant != "" {
+		return row.Merchant
+	}
+	return row.Description
+}
+
+func (row Row) MerchantIdentity() string {
+	return strings.ToLower(strings.Join(strings.Fields(row.MerchantName()), " "))
+}
+
 type Batch struct {
 	Bank   string
 	Digest [32]byte

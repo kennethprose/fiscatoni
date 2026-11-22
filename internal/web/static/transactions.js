@@ -140,6 +140,7 @@ function renderRow(row, body) {
 const dialogs = {edit: el("edit-category"), delete: el("delete-transaction")};
 const categoryChoice = el("edit-choice");
 const newCategory = el("edit-new");
+const rememberChoice = el("edit-remember");
 let selectedTransaction;
 let updating = false;
 
@@ -162,6 +163,8 @@ function openTransactionDialog(row, action) {
     categoryChoice.add(new Option("Add a new category…", "!"));
     categoryChoice.value = row.category ? "name:" + row.category : "";
     newCategory.value = "";
+    el("edit-single").checked = true;
+    rememberChoice.checked = false;
     updateCategoryFields();
   }
   dialogs[action].showModal();
@@ -173,21 +176,30 @@ function updateCategoryFields() {
   el("edit-new-label").hidden = !adding;
   newCategory.required = adding;
   newCategory.setCustomValidity("");
+  updateRememberChoice();
 }
 
-async function updateTransaction(action, category) {
+function updateRememberChoice() {
+  const category = categoryChoice.value === "!" ? newCategory.value.trim() : categoryChoice.value.slice(5);
+  const canRemember = category && [...category].length <= 128;
+  rememberChoice.disabled = updating || !canRemember;
+  if (!canRemember) rememberChoice.checked = false;
+}
+
+async function updateTransaction(action, edit) {
   if (updating) return;
   updating = true;
   const submit = el(action + "-submit");
   const cancel = el(action + "-cancel");
   submit.disabled = cancel.disabled = true;
-  categoryChoice.disabled = newCategory.disabled = action === "edit";
+  categoryChoice.disabled = newCategory.disabled = el("edit-scope").disabled = action === "edit";
+  updateRememberChoice();
   showEditError(action, "");
   const {id} = selectedTransaction;
   const request = {method: action === "delete" ? "DELETE" : "PATCH", headers: {"X-Fiscatoni": "ledger"}};
   if (action === "edit") {
     request.headers["Content-Type"] = "application/json";
-    request.body = JSON.stringify({category});
+    request.body = JSON.stringify(edit);
   }
   try {
     const response = await fetch("/api/transactions/" + encodeURIComponent(id), request);
@@ -197,8 +209,14 @@ async function updateTransaction(action, category) {
     }
     dialogs[action].close();
     const notice = el("ledger-notice");
-    notice.textContent = response.status === 404 ? "This transaction is no longer in the ledger." :
-      action === "delete" ? "Transaction deleted." : "Category updated.";
+    if (response.status === 404) {
+      notice.textContent = "This transaction is no longer in the ledger.";
+    } else if (action === "delete") {
+      notice.textContent = "Transaction deleted.";
+    } else {
+      notice.textContent = edit.allForMerchant ? "Category updated for this merchant’s saved transactions." : "Category updated.";
+      if (edit.rememberForMerchant) notice.textContent += " Merchant rule saved for future imports.";
+    }
     notice.hidden = false;
     await Promise.all([loadPage(currentPage), loadFilterOptions()]);
     if (document.activeElement === document.body) {
@@ -209,7 +227,8 @@ async function updateTransaction(action, category) {
   } finally {
     updating = false;
     submit.disabled = cancel.disabled = false;
-    categoryChoice.disabled = newCategory.disabled = false;
+    categoryChoice.disabled = newCategory.disabled = el("edit-scope").disabled = false;
+    updateRememberChoice();
   }
 }
 
@@ -221,7 +240,10 @@ categoryChoice.onchange = () => {
   updateCategoryFields();
   if (categoryChoice.value === "!") newCategory.focus();
 };
-newCategory.oninput = () => newCategory.setCustomValidity("");
+newCategory.oninput = () => {
+  newCategory.setCustomValidity("");
+  updateRememberChoice();
+};
 el("edit-form").onsubmit = event => {
   event.preventDefault();
   let category = categoryChoice.value.slice(5);
@@ -234,7 +256,11 @@ el("edit-form").onsubmit = event => {
     }
     category = categoryNames.find(name => name.toLowerCase() === category.toLowerCase()) || category;
   }
-  updateTransaction("edit", category);
+  updateTransaction("edit", {
+    category,
+    allForMerchant: el("edit-merchant").checked,
+    rememberForMerchant: rememberChoice.checked
+  });
 };
 el("delete-form").onsubmit = event => {
   event.preventDefault();

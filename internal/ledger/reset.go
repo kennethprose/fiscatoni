@@ -17,24 +17,29 @@ func Reset(ctx context.Context, db *sql.DB) error {
 	}
 	defer tx.Rollback()
 
-	// Imports lock their account before writing. Lock existing accounts and
-	// the primary-key gaps so a new account can't start an import mid-reset.
-	accounts, err := tx.QueryContext(ctx, "SELECT id FROM accounts FORCE INDEX (PRIMARY) FOR UPDATE")
-	if err != nil {
-		return err
-	}
-	for accounts.Next() {
-		// Drain the locking query before issuing the deletes on this connection.
-	}
-	accounts.Close()
-	if err := accounts.Err(); err != nil {
+	if err := lockLedgerAccounts(ctx, tx); err != nil {
 		return err
 	}
 
-	for _, table := range []string{"transactions", "deleted_import_rows", "imports", "merchant_categories", "accounts"} {
+	// Clear rules before transaction rows, matching the lock order of category edits.
+	for _, table := range []string{"merchant_categories", "merchant_regex_rules", "transactions", "deleted_import_rows", "imports", "accounts"} {
 		if _, err := tx.ExecContext(ctx, "DELETE FROM "+table); err != nil {
 			return fmt.Errorf("clear %s: %w", table, err)
 		}
 	}
 	return tx.Commit()
+}
+
+func lockLedgerAccounts(ctx context.Context, tx *sql.Tx) error {
+	// Imports lock their account before writing. Lock accounts and primary-key
+	// gaps so a new account can't start an import during a ledger-wide change.
+	accounts, err := tx.QueryContext(ctx, "SELECT id FROM accounts FORCE INDEX (PRIMARY) FOR UPDATE")
+	if err != nil {
+		return err
+	}
+	defer accounts.Close()
+	for accounts.Next() {
+		// Drain the locking query before using the transaction again.
+	}
+	return accounts.Err()
 }

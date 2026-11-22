@@ -8,17 +8,20 @@ const pageSize = 25;
 let file, inspection, profile, review, rows = [], page = 0, busy = false, saved = false;
 let overlaps = new Set(), decisions = {};
 let accounts = [], categoryEdits = {};
-let categoryNames = [], suggestions = {}, remember = {}, categoryLine;
+let categoryNames = [], suggestions = {}, remember = {}, categoryRow;
 
 function selectedCategory(row) {
   return categoryEdits[row.Line] ?? suggestions[row.Line] ?? row.Category;
 }
 
-function setCategory(line, category) {
-  categoryEdits[line] = category;
-  if (!category || [...category].length > 128) delete remember[line];
+function setCategory(row, category) {
+  for (const match of rows) {
+    if (match.MerchantGroup !== row.MerchantGroup) continue;
+    categoryEdits[match.Line] = category;
+    if (!category) delete remember[match.Line];
+  }
   renderRows();
-  el("category-" + line)?.focus();
+  el("category-" + row.Line)?.focus();
 }
 
 function categoryPicker(row) {
@@ -29,19 +32,24 @@ function categoryPicker(row) {
   select.setAttribute("aria-label", "Category for line " + row.Line);
   select.add(new Option("Uncategorized", ""));
   for (const name of categoryNames) select.add(new Option(name, name));
+  const value = selectedCategory(row);
+  if ([...value].length > 128) {
+    const original = new Option(value, value);
+    original.disabled = true;
+    select.add(original);
+  }
   const add = new Option("Add a new category…", "");
   select.add(add);
-  const value = selectedCategory(row);
   select.value = value;
   select.onchange = () => {
     if (select.selectedOptions[0] === add) {
       select.value = value;
-      categoryLine = row.Line;
+      categoryRow = row;
       el("category-name").value = "";
       el("category-name").setCustomValidity("");
       el("category-dialog").showModal();
       el("category-name").focus();
-    } else setCategory(row.Line, select.value);
+    } else setCategory(row, select.value);
   };
   group.append(select);
   if (suggestions[row.Line] && value === suggestions[row.Line]) {
@@ -79,7 +87,7 @@ el("new-category").onsubmit = event => {
   const existing = categoryNames.find(item => item.toLowerCase() === name.toLowerCase());
   if (!existing) { categoryNames.push(name); categoryNames.sort((a, b) => a.localeCompare(b)); }
   el("category-dialog").close();
-  setCategory(categoryLine, existing || name);
+  setCategory(categoryRow, existing || name);
 };
 
 function chooseAccounts(preferred = el("account").value) {
@@ -333,10 +341,10 @@ async function preview() {
     rows = result.rows; review = result.review;
     suggestions = result.categories.suggestions;
     categoryNames = [...new Set([...result.categories.names, ...rows.map(row => row.Category),
-    ...Object.values(suggestions), ...Object.values(categoryEdits)].filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    ...Object.values(suggestions), ...Object.values(categoryEdits)].filter(name => name && [...name].length <= 128))].sort((a, b) => a.localeCompare(b));
     renderRows();
     chooseAccounts();
-    el("summary").textContent = "Amounts are in USD. Negative amounts represent spending.";
+    el("summary").textContent = "Amounts are in USD. Negative amounts represent spending. Category changes apply to every matching merchant in this import.";
   } catch (error) { showMapping(true); message(error.message); }
 }
 async function load(selected) {
