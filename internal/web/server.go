@@ -14,6 +14,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -27,11 +28,11 @@ var assets embed.FS
 type saveFunc func(context.Context, *sql.DB, int64, importer.Batch, map[int]bool, map[int]bool) (ledger.Result, error)
 type categoryLookup func(context.Context, *sql.DB, []importer.Row) (ledger.CategoryOptions, error)
 
-func Handler(db *sql.DB) http.Handler {
-	return handler(db, ledger.SaveToAccount, ledger.CategoriesForReview)
+func Handler(db *sql.DB, serverHost string) http.Handler {
+	return handler(db, ledger.SaveToAccount, ledger.CategoriesForReview, serverHost)
 }
 
-func handler(db *sql.DB, save saveFunc, categories categoryLookup) http.Handler {
+func handler(db *sql.DB, save saveFunc, categories categoryLookup, serverHost string) http.Handler {
 	mux := http.NewServeMux()
 	static, _ := fs.Sub(assets, "static")
 	mux.Handle("GET /", http.FileServer(http.FS(static)))
@@ -215,12 +216,8 @@ func handler(db *sql.DB, save saveFunc, categories categoryLookup) http.Handler 
 	}
 	protected := http.NewCrossOriginProtection().Handler(mux)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		host, _, err := net.SplitHostPort(r.Host)
-		if err != nil {
-			host = r.Host
-		}
-		if host != "localhost" && host != "127.0.0.1" && host != "::1" {
-			http.Error(w, "Local access only", 403)
+		if !allowedHost(r.Host, serverHost) {
+			http.Error(w, "Use the server's private IP address or configure FISCATONI_HOST for this hostname.", http.StatusForbidden)
 			return
 		}
 		w.Header().Set("Cache-Control", "no-store")
@@ -228,6 +225,18 @@ func handler(db *sql.DB, save saveFunc, categories categoryLookup) http.Handler 
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
 		protected.ServeHTTP(w, r)
 	})
+}
+
+func allowedHost(authority, serverHost string) bool {
+	host, _, err := net.SplitHostPort(authority)
+	if err != nil {
+		host = authority
+	}
+	if strings.EqualFold(host, "localhost") || (serverHost != "" && strings.EqualFold(host, serverHost)) {
+		return true
+	}
+	ip, err := netip.ParseAddr(strings.TrimSuffix(strings.TrimPrefix(host, "["), "]"))
+	return err == nil && (ip.IsLoopback() || ip.IsPrivate())
 }
 
 // Category assignments refer to physical CSV lines, including on later pages.

@@ -14,6 +14,30 @@ import (
 	"fiscatoni/internal/ledger"
 )
 
+func TestServerAddress(t *testing.T) {
+	h := Handler(nil, "tower.local")
+	for _, tc := range []struct {
+		host string
+		want int
+	}{
+		{"localhost:8080", 200},
+		{"192.168.1.42:8080", 200},
+		{"[fd00::42]", 200},
+		{"[::1]:8080", 200},
+		{"TOWER.local:8181", 200},
+		{"unknown.example", 403},
+	} {
+		t.Run(tc.host, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "http://"+tc.host+"/", nil)
+			res := httptest.NewRecorder()
+			h.ServeHTTP(res, req)
+			if res.Code != tc.want {
+				t.Fatalf("got HTTP %d, want %d", res.Code, tc.want)
+			}
+		})
+	}
+}
+
 func TestReviewBeforeSave(t *testing.T) {
 	const csv = "When;Payee;Value\n2026-06-01;Example merchant;3.14\n"
 	const mapping = `{"Bank":"example","Date":"When","Description":"Payee","Amount":"Value","Layout":"2006-01-02"}`
@@ -29,7 +53,7 @@ func TestReviewBeforeSave(t *testing.T) {
 		return ledger.Result{Added: 1, ID: 1}, nil
 	}, func(context.Context, *sql.DB, []importer.Row) (ledger.CategoryOptions, error) {
 		return ledger.CategoryOptions{}, nil
-	})
+	}, "")
 	post := func(action string, values map[string]string) *httptest.ResponseRecorder {
 		t.Helper()
 		var body bytes.Buffer

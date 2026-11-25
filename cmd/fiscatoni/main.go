@@ -49,7 +49,7 @@ func run(args []string) error {
 			return err
 		}
 		defer db.Close()
-		server := http.Server{Addr: *listen, Handler: web.Handler(db), ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 2 * time.Minute, IdleTimeout: time.Minute}
+		server := http.Server{Addr: *listen, Handler: web.Handler(db, os.Getenv("FISCATONI_HOST")), ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 2 * time.Minute, IdleTimeout: time.Minute}
 		return server.ListenAndServe()
 	}
 	if cmd != "import" && cmd != "preview" {
