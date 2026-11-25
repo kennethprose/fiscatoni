@@ -1,129 +1,53 @@
 # Fiscatoni
 
-A self-hosted Go importer for USD card transactions, backed by MySQL 8.4. The browser interface and CLI use the same parser and database.
+Fiscatoni is a self-hosted app for tracking your spending. Import USD card transactions from bank CSV exports, then review your spending by month, account, or category in your browser. The app and its MySQL database run in one Docker container.
 
-## Spending overview
+## Install
 
-The home page shows monthly income and spending, breakdowns by account and category, and the six highest-spend merchants. Choose a **Starting month** and **Ending month** to include both months and everything between them. The default is six months ending in the most recent month with income or spending. Long ranges have **Earlier months** and **Later months** controls on the monthly chart.
+On a machine that can run Linux/amd64 containers, create a folder for Fiscatoni. In that folder, save the following as `.env`, replacing the example password with one of your own. Then choose either installation method below.
 
-Use **Income**, **Spending**, and **Net savings** to choose the monthly series. Net savings subtracts gross spending from income and appears below zero in months with a shortfall. Use **Bar** or **Pie** on each breakdown to switch views. The account breakdown compares every USD account for the selected range, including accounts with zero spending. Select a bar, slice, or legend entry to open the transactions behind it.
-
-The overview reports gross USD spending. It includes outgoing amounts and excludes credits (including refunds) and transactions whose imported type identifies them as payments or transfers. Merchant labels use the full transaction description when the export has no merchant field.
-
-Income includes positive USD transactions with an income-specific imported type such as payroll, direct deposit, interest, or dividends. You can include an unlabeled incoming transaction by setting its category to **Income**. Imported types that identify refunds, payments, transfers, or reversals are excluded from income.
-
-## Browse transactions
-
-Choose **Transactions** to view imported transactions, newest first. Filter by account, category, activity date, or money in and out. Search matches the merchant and description. Date filters include both selected days. **Uncategorized** shows transactions with an empty category.
-
-Use **Edit category** on a saved row to choose an existing category, add a new one, or clear the category. Choose **This transaction only** or **All saved transactions from this merchant**. Merchant-wide edits apply across accounts and dates. Check **Remember for merchant** in the dialog to save or update the category rule for future imports, with either edit scope.
-
-Use **Delete** and confirm to remove a row. If you import the same file again into the same account, the importer reviews the deleted rows while preserving the other rows and previous skip decisions.
-
-## Reset the ledger
-
-Open **Settings**, select **Delete all data**, then confirm in the dialog. This clears all accounts, transactions, categories, import history, and remembered merchant rules. You can add accounts and import statements again from **Imports**.
-
-## Manage categories
-
-Under **Settings → Categories**, see each category and how many transactions and merchant rules use it. Add categories to make them available in Imports and transaction edits. Renaming updates existing transactions and merchant rules. Once a category has no transactions, you can delete it and any merchant rules that use it.
-
-## Manage merchant rules
-
-Open **Settings** and find **Merchant rules**. Edit a rule to change the category for future matching imports, or delete it to let those imports use their bank category when available. Older rules show the merchant name when it can be recovered from a saved transaction. Rules labeled **Merchant name unavailable** can still be edited or deleted.
-
-Select **Create rule** to categorize an exact merchant name or a Go regular expression before importing. A pattern like `^STOP & SHOP [0-9]{4}$` matches locations such as `STOP & SHOP 0541` and `STOP & SHOP 4621`. Rules use the merchant field when available and the full description otherwise. Matching ignores case and collapses whitespace in the input.
-
-Exact rules take precedence, followed by the first matching regex in the order shown in Settings. Use the up and down arrows on a regex rule to save a new order. New regex rules start at the bottom.
-
-Select **Apply to saved transactions** when creating or editing a rule to replace the category on matching transactions across all accounts. For a regex, **Test against history** previews the current pattern and flags transactions where another rule takes precedence. Both actions use the current pattern and saved order.
-
-## Import in the browser
-
-Set `MYSQL_PASSWORD` in a local `.env` file before first startup, then run `docker compose up -d --build --wait`. Open [Fiscatoni](http://127.0.0.1:8080) and choose **Imports**. To choose another host port, set `FISCATONI_PORT` in the same file.
-
-Open **Accounts** to save a bank and account name to your local profile. Accounts created by previous imports appear here too.
-
-Drop a CSV or choose a file. A known bank layout opens a transaction preview. Use **Edit column mapping** to adjust the interpretation, or map an unfamiliar file using its headers and sample values. Use **Update preview** after changing a mapping. Choose a **Destination account** for that bank, or use **Add account** during the import. When the bank has one saved account, the importer selects it automatically.
-
-Use **Categorize by merchant** to review each unique merchant and the number of transactions from it. A merchant shows **Mixed categories** when its rows have different categories. Changing or clearing a category in either preview updates all rows from that merchant in the current import, including rows on other pages. Use **Add a new category…** to create a category from the menu. Categories become available for later imports when you save a transaction using them.
-
-Check **Only merchants without a matching rule** to show merchants that have neither an exact-name nor a regex rule match, including merchants with a category from the CSV. The browser remembers the checkbox setting for future visits.
-
-In **Transaction preview**, each row shows whether its category came from a merchant rule, the CSV file, or an edit during review. Rows with a blank CSV category and no rule show **No category supplied**.
-
-Check **Remember for merchant** to use that category on future imports across your accounts. Matching uses the merchant field, or the full description when the export omits a merchant. It ignores case and differences in whitespace. A remembered category takes precedence over the bank category. Check the box again to update an existing rule.
-
-Select **Save to MySQL** to commit the import. If existing transactions match, choose **Keep** or **Skip** for each flagged row and save again. Only rows added to the ledger can create or update a merchant rule.
-
-The browser sends the selected CSV only to the local Go server. Previews are processed in memory. The container serves all interface assets locally, publishes the web port only on host loopback, and keeps MySQL on container loopback.
-
-## Preview a bank export
-
-From the project directory in PowerShell, build the image and mount one CSV read-only. The filename inside the container can be anything. Recognition uses the header.
-
-```powershell
-docker build -t fiscatoni:dev .
-$csv = (Resolve-Path "$HOME/Downloads/chase.csv").Path
-docker run --rm --network none --entrypoint fiscatoni --mount "type=bind,source=$csv,target=/input.csv,readonly" fiscatoni:dev preview /input.csv
+```dotenv
+MYSQL_DATABASE=fiscatoni
+MYSQL_USER=fiscatoni
+MYSQL_PASSWORD=replace-with-your-own-password
+MYSQL_RANDOM_ROOT_PASSWORD=yes
 ```
 
-Add `-rows` before `/input.csv` to print transaction details locally, including the physical CSV line number, transaction and posting dates, source category, and signed amount in cents. The default preview prints only the recognized layout and row count.
+### Docker run
 
-| Export | Interpretation |
-| --- | --- |
-| Chase credit card | Uses the signed amount, US month/day/year dates, and bank category, transaction type and memo. |
-| Capital One card | A debit is negative and a credit is positive. Preserves the category and card reference, including leading zeroes. |
-| Robinhood card | A positive source amount becomes a negative ledger amount. Preserves merchant, description, source time, status and type. The export supplies no spending category. |
+Run this command from the folder containing `.env`.
 
-The offline CLI preview shows the bank's category. CLI imports apply saved merchant rules when writing to MySQL. A positive amount may be a refund or card payment. Robinhood brokerage activity uses a different layout.
-
-## Save transactions
-
-The browser and CLI share a single container and the persistent `ledger-data` volume. Start the container before a CLI import.
-
-```powershell
-docker compose up -d --build --wait
+```sh
+docker run -d --name fiscatoni --restart unless-stopped --init \
+  --env-file .env \
+  -p 127.0.0.1:8080:8080 \
+  -v fiscatoni_ledger-data:/var/lib/mysql \
+  roseatoni/fiscatoni:latest
 ```
 
-Choose a stable account label and reuse it on subsequent exports for that account. From PowerShell, use the following command to stream the original file bytes into the running container. This gives the importer access to just that file.
+### Docker Compose
 
-```powershell
-cmd /c 'docker compose exec -T app fiscatoni import -account "My Chase card" - < "%USERPROFILE%\Downloads\chase.csv"'
+Save this as `compose.yaml` alongside `.env`.
+
+```yaml
+services:
+  app:
+    image: roseatoni/fiscatoni:latest
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ledger-data:/var/lib/mysql
+
+volumes:
+  ledger-data:
+    name: fiscatoni_ledger-data
 ```
 
-The importer validates the entire file before saving. Each import commits as one database transaction. An identical file for the same bank and account returns its original batch ID and can replace previously deleted rows. For overlapping exports, an existing row with the same activity date, signed amount, and normalized description triggers a review. Review the reported lines with `preview -rows`, then pass decisions such as `-skip-lines 4,8 -keep-lines 10` before the filename. An unresolved match saves nothing. Identical purchases within a single fresh export are retained. Edits to a date, description, or amount can prevent a match across files.
+Start Fiscatoni from that folder with `docker compose up -d`.
 
-Stop the database with `docker compose down`. Keep its volume when replacing containers. The database password in `.env` is used to initialize a new volume.
+## Open Fiscatoni
 
-## Map another layout
-
-Use a local JSON profile when the headers are unfamiliar. Name the source columns and use a Go date layout (`2006-01-02` means year-month-day).
-
-```json
-{
-  "Bank": "my-bank",
-  "Date": "Activity Date",
-  "Layout": "01/02/2006",
-  "Description": "Details",
-  "Amount": "Net Amount",
-  "Category": "Spending Group"
-}
-```
-
-Mount the profile alongside the CSV and supply it to preview or import.
-
-```powershell
-$profilePath = (Resolve-Path ./my-bank.json).Path
-docker run --rm --network none --entrypoint fiscatoni -v "${csv}:/input.csv:ro" -v "${profilePath}:/profile.json:ro" fiscatoni:dev preview -mapping /profile.json /input.csv
-```
-
-For separate debit and credit columns, replace `Amount` with `Debit` and `Credit`. For a signed column that represents purchases as positive, set `"Invert": true`. Files may use comma, semicolon or tab delimiters and must be UTF-8, up to 32 MiB, with plain decimal USD amounts. The importer accepts reordered headers and an optional UTF-8 byte order mark.
-
-## Go project layout
-
-- `internal/importer` handles format recognition, CSV validation, and exact integer-cent conversion. It can run and be tested without MySQL.
-- `internal/ledger` owns the MySQL tables, account-scoped duplicate checks, and atomic batch writes.
-- `cmd/fiscatoni` connects the parser and ledger to the preview and import commands.
-
-Run `go test ./...` with Go 1.26, or build the Dockerfile to run the same tests in its build stage. The runtime image contains MySQL and the compiled executable. Its build context excludes local CSV files and credentials.
+Once the database finishes starting, open [Fiscatoni](http://127.0.0.1:8080) on the Docker host and choose **Imports** to add your first CSV. Both installation methods store your transactions in the `fiscatoni_ledger-data` Docker volume, so they survive container replacement.
