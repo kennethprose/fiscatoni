@@ -97,6 +97,28 @@ func handler(db *sql.DB, save saveFunc, categories categoryLookup, serverHost st
 		}
 		writeJSON(w, 200, account)
 	})
+	mux.HandleFunc("DELETE /api/accounts/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Fiscatoni") != "import" {
+			problem(w, 403, "Open the local account manager and try again.")
+			return
+		}
+		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil || id <= 0 {
+			problem(w, 400, "Select a valid account.")
+			return
+		}
+		err = ledger.DeleteAccount(r.Context(), db, id)
+		switch {
+		case errors.Is(err, ledger.ErrAccountNotFound):
+			problem(w, 404, err.Error())
+		case errors.Is(err, ledger.ErrAccountInUse):
+			problem(w, 409, err.Error())
+		case err != nil:
+			problem(w, 503, "Could not delete the account. Try again.")
+		default:
+			w.WriteHeader(http.StatusNoContent)
+		}
+	})
 	for _, op := range []string{"inspect", "preview", "save"} {
 		mux.HandleFunc("POST /api/"+op, func(w http.ResponseWriter, r *http.Request) {
 			if r.Header.Get("X-Fiscatoni") != "import" {

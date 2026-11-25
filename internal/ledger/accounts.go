@@ -13,8 +13,15 @@ type Account struct {
 	Label string `json:"label"`
 }
 
+type AccountUsage struct {
+	Account
+	HasTransactions bool `json:"hasTransactions"`
+}
+
 var ErrInvalidAccount = errors.New("Choose a saved account belonging to this bank.")
 var ErrAccountDetails = errors.New("Enter a bank identifier (up to 64 bytes) and account name (up to 128 bytes).")
+var ErrAccountNotFound = errors.New("This account no longer exists.")
+var ErrAccountInUse = errors.New("Delete the account's transactions before deleting the account.")
 
 func ensureSchema(ctx context.Context, db *sql.DB) error {
 	for _, ddl := range schema {
@@ -25,19 +32,21 @@ func ensureSchema(ctx context.Context, db *sql.DB) error {
 	return migrateCategories(ctx, db)
 }
 
-func Accounts(ctx context.Context, db *sql.DB) ([]Account, error) {
+func Accounts(ctx context.Context, db *sql.DB) ([]AccountUsage, error) {
 	if err := ensureSchema(ctx, db); err != nil {
 		return nil, err
 	}
-	rows, err := db.QueryContext(ctx, "SELECT id,bank,label FROM accounts ORDER BY bank,label")
+	rows, err := db.QueryContext(ctx, `SELECT a.id,a.bank,a.label,
+		EXISTS(SELECT 1 FROM transactions t WHERE t.account_id=a.id)
+		FROM accounts a ORDER BY a.bank,a.label`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	accounts := []Account{}
+	accounts := []AccountUsage{}
 	for rows.Next() {
-		var account Account
-		if err := rows.Scan(&account.ID, &account.Bank, &account.Label); err != nil {
+		var account AccountUsage
+		if err := rows.Scan(&account.ID, &account.Bank, &account.Label, &account.HasTransactions); err != nil {
 			return nil, err
 		}
 		accounts = append(accounts, account)
@@ -62,4 +71,45 @@ func AddAccount(ctx context.Context, db *sql.DB, bank, label string) (Account, e
 	}
 	account.ID, err = result.LastInsertId()
 	return account, err
+}
+
+func DeleteAccount(ctx context.Context, db *sql.DB, id int64) error {
+	if err := ensureSchema(ctx, db); err != nil {
+		return err
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Imports lock the destination account before writing. Check its current
+	// transactions while holding the same lock.
+	err = tx.QueryRowContext(ctx, "SELECT id FROM accounts WHERE id=? FOR UPDATE", id).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrAccountNotFound
+	}
+	if err != nil {
+		return err
+	}
+	var used bool
+	if err := tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM transactions WHERE account_id=?)", id).Scan(&used); err != nil {
+		return err
+	}
+	if used {
+		return ErrAccountInUse
+	}
+
+	// An empty account can still have import records and deleted CSV lines.
+	if _, err := tx.ExecContext(ctx, `DELETE d FROM deleted_import_rows d
+		JOIN imports i ON i.id=d.import_id WHERE i.account_id=?`, id); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM imports WHERE account_id=?", id); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM accounts WHERE id=?", id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

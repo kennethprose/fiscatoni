@@ -817,7 +817,8 @@ summary {
   gap: 8px
 }
 
-#accounts-dialog {
+#accounts-dialog,
+#delete-account-dialog {
   width: min(40rem, calc(100% - 32px));
   max-height: 85vh;
   overflow: auto;
@@ -827,7 +828,12 @@ summary {
   border-radius: 14px
 }
 
-#accounts-dialog::backdrop {
+#delete-account-dialog {
+  width: min(28rem, calc(100% - 32px));
+}
+
+#accounts-dialog::backdrop,
+#delete-account-dialog::backdrop {
   background: rgb(16 40 32 / 48%)
 }
 
@@ -848,12 +854,26 @@ summary {
 }
 
 #accounts-list small,
+#accounts-help,
+#delete-account-help,
 #account-status {
   color: var(--muted);
   font-size: .9rem
 }
 
-#new-account {
+.saved-account-label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+#delete-account-name {
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+#new-account,
+#confirm-account-delete {
   display: grid;
   gap: 14px
 }

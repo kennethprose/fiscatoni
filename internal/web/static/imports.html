@@ -170,7 +170,8 @@
     <div class="section-head">
       <h2 id="accounts-title">Accounts</h2><button type="button" class="secondary" id="accounts-close">Close</button>
     </div>
-    <ul id="accounts-list" aria-label="Saved accounts"></ul>
+    <p id="accounts-help">Only accounts with no transactions can be deleted.</p>
+    <ul id="accounts-list" aria-label="Saved accounts" aria-describedby="accounts-help"></ul>
     <form id="new-account">
       <h3>Add an account</h3>
       <label>Bank<select id="new-bank">
@@ -185,6 +186,18 @@
       <button type="submit" class="primary">Save account</button>
     </form>
     <p id="account-status" role="status"></p>
+  </dialog>
+  <dialog id="delete-account-dialog" aria-labelledby="delete-account-title" aria-describedby="delete-account-name delete-account-help">
+    <form id="confirm-account-delete">
+      <h2 id="delete-account-title">Delete account?</h2>
+      <p id="delete-account-name"></p>
+      <p id="delete-account-help">Any import history for this account will also be removed.</p>
+      <p id="delete-account-error" class="error" role="alert" hidden></p>
+      <div class="category-actions">
+        <button type="button" id="delete-account-cancel" class="secondary" autofocus>Cancel</button>
+        <button type="submit" id="delete-account-submit" class="danger">Delete account</button>
+      </div>
+    </form>
   </dialog>
 </body>
 

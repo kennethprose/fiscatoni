@@ -170,6 +170,7 @@ function clearDecisions() {
 function showAccountList() {
   const list = el("accounts-list");
   list.replaceChildren();
+  list.hidden = false;
   if (!accounts.length) {
     const empty = document.createElement("li");
     empty.textContent = "No saved accounts yet.";
@@ -177,11 +178,25 @@ function showAccountList() {
   }
   for (const account of accounts) {
     const item = document.createElement("li");
+    const label = document.createElement("div");
+    label.className = "saved-account-label";
     const bank = document.createElement("small");
-    bank.textContent = names[account.bank] || account.bank;
-    item.append(document.createTextNode(account.label), bank);
+    bank.textContent = accountBankName(account);
+    label.append(document.createTextNode(account.label), bank);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "secondary";
+    remove.textContent = "Delete";
+    remove.setAttribute("aria-label", "Delete account " + account.label + " (" + bank.textContent + ")");
+    remove.disabled = account.hasTransactions;
+    remove.onclick = () => openAccountDeletion(account);
+    item.append(label, remove);
     list.append(item);
   }
+}
+
+function accountBankName(account) {
+  return Object.hasOwn(names, account.bank) ? names[account.bank] : account.bank;
 }
 
 async function fetchAccounts() {
@@ -206,13 +221,66 @@ async function openAccounts(fromImport) {
   el("new-bank").value = Object.hasOwn(names, bank) ? bank : "";
   el("new-custom-bank").value = el("new-bank").value ? "" : bank;
   showCustomBank();
-  el("account-status").textContent = "";
+  el("account-status").textContent = "Loading saved accounts…";
+  el("accounts-list").hidden = true;
   dialog.showModal();
   el("new-account").inert = true;
-  try { await fetchAccounts(); }
+  try {
+    await fetchAccounts();
+    el("account-status").textContent = "";
+  }
   catch (error) { el("account-status").textContent = error.message; }
   finally { el("new-account").inert = false; }
 }
+
+const deleteAccountDialog = el("delete-account-dialog");
+const deleteAccountSubmit = el("delete-account-submit");
+const deleteAccountCancel = el("delete-account-cancel");
+const deleteAccountError = el("delete-account-error");
+let deletingAccount;
+
+function openAccountDeletion(account) {
+  deletingAccount = account;
+  el("delete-account-name").textContent = account.label + " · " + accountBankName(account);
+  deleteAccountError.hidden = true;
+  deleteAccountDialog.showModal();
+}
+
+deleteAccountCancel.onclick = () => deleteAccountDialog.close();
+deleteAccountDialog.oncancel = event => {
+  if (deleteAccountSubmit.disabled) event.preventDefault();
+};
+el("confirm-account-delete").onsubmit = async event => {
+  event.preventDefault();
+  if (deleteAccountSubmit.disabled) return;
+  const account = deletingAccount;
+  deleteAccountSubmit.disabled = deleteAccountCancel.disabled = true;
+  deleteAccountError.hidden = true;
+  try {
+    const response = await fetch("/api/accounts/" + encodeURIComponent(account.id), {
+      method: "DELETE", headers: { "X-Fiscatoni": "import" }
+    });
+    if (!response.ok && response.status !== 404) {
+      if (response.status === 409) {
+        account.hasTransactions = true;
+        showAccountList();
+      }
+      const problem = await response.json();
+      throw new Error(problem.error || "Could not delete the account.");
+    }
+    accounts = accounts.filter(entry => entry.id !== account.id);
+    chooseAccounts();
+    deleteAccountDialog.close();
+    showAccountList();
+    el("accounts-close").focus();
+    el("account-status").textContent = response.ok ? "Deleted account · " + account.label : "This account no longer exists.";
+  } catch (error) {
+    deleteAccountError.textContent = error.message;
+    deleteAccountError.hidden = false;
+  } finally {
+    deleteAccountSubmit.disabled = deleteAccountCancel.disabled = false;
+  }
+};
 
 el("manage-accounts").onclick = () => openAccounts(false);
 el("add-destination").onclick = () => openAccounts(true);
