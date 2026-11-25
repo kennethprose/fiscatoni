@@ -7,6 +7,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -14,6 +16,14 @@ import (
 )
 
 var schema = []string{
+	`CREATE TABLE IF NOT EXISTS categories (
+		id BIGINT PRIMARY KEY AUTO_INCREMENT, name TEXT NOT NULL,
+		name_key BINARY(32) GENERATED ALWAYS AS (UNHEX(SHA2(CAST(name AS BINARY), 256))) STORED,
+		UNIQUE(name_key)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+	`CREATE TABLE IF NOT EXISTS ledger_migrations (
+		name VARCHAR(64) PRIMARY KEY
+	) ENGINE=InnoDB`,
 	`CREATE TABLE IF NOT EXISTS merchant_categories (
 		merchant_key BINARY(32) PRIMARY KEY, category TEXT NOT NULL
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
@@ -175,6 +185,15 @@ func save(ctx context.Context, db *sql.DB, account Account, batch importer.Batch
 			if category, ok := matches[row.Line]; ok {
 				keep[i].Category = category
 			}
+		}
+	}
+	categories := make(map[string]struct{})
+	for _, row := range keep {
+		categories[row.Category] = struct{}{}
+	}
+	for _, name := range slices.Sorted(maps.Keys(categories)) {
+		if err := registerCategory(ctx, tx, name); err != nil {
+			return Result{}, err
 		}
 	}
 	if err := rememberCategories(ctx, tx, keep, remember); err != nil {

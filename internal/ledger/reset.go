@@ -8,26 +8,34 @@ import (
 
 // Reset deletes the application's ledger data in one transaction.
 func Reset(ctx context.Context, db *sql.DB) error {
-	if err := ensureSchema(ctx, db); err != nil {
-		return err
-	}
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
+	tx, err := beginLedgerWideChange(ctx, db)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	if err := lockLedgerAccounts(ctx, tx); err != nil {
-		return err
-	}
-
-	// Clear rules before transaction rows, matching the lock order of category edits.
-	for _, table := range []string{"merchant_categories", "merchant_regex_rules", "transactions", "deleted_import_rows", "imports", "accounts"} {
+	// Lock the catalog before rules and transactions, matching the write paths.
+	for _, table := range []string{"categories", "merchant_categories", "merchant_regex_rules", "transactions", "deleted_import_rows", "imports", "accounts"} {
 		if _, err := tx.ExecContext(ctx, "DELETE FROM "+table); err != nil {
 			return fmt.Errorf("clear %s: %w", table, err)
 		}
 	}
 	return tx.Commit()
+}
+
+func beginLedgerWideChange(ctx context.Context, db *sql.DB) (*sql.Tx, error) {
+	if err := ensureSchema(ctx, db); err != nil {
+		return nil, err
+	}
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
+	if err != nil {
+		return nil, err
+	}
+	if err := lockLedgerAccounts(ctx, tx); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	return tx, nil
 }
 
 func lockLedgerAccounts(ctx context.Context, tx *sql.Tx) error {

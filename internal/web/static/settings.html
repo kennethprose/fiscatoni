@@ -28,7 +28,32 @@
     <div class="page-title">
       <h1>Settings</h1>
     </div>
-    <section class="card merchant-rules" aria-labelledby="rules-title">
+    <section class="card settings-table" aria-labelledby="categories-title">
+      <header>
+        <div>
+          <h2 id="categories-title">Categories</h2>
+          <p>Delete a category once its transactions have been moved or cleared.</p>
+        </div>
+        <button class="primary" type="button" id="create-category" aria-haspopup="dialog">Add category</button>
+      </header>
+      <p class="rules-status" id="categories-status" role="status" hidden></p>
+      <p class="rules-state" id="categories-state" role="status">Loading categories…</p>
+      <button class="secondary rules-retry" id="categories-retry" type="button" hidden>Try again</button>
+      <div class="table-wrap" id="categories-table" hidden>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Transactions</th>
+              <th scope="col">Merchant rules</th>
+              <th scope="col" class="rule-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="categories-list"></tbody>
+        </table>
+      </div>
+    </section>
+    <section class="card settings-table merchant-rules" aria-labelledby="rules-title">
       <header>
         <div>
           <h2 id="rules-title">Merchant rules</h2>
@@ -61,6 +86,20 @@
     </section>
     <p class="reset-status" id="reset-status" role="status" hidden></p>
   </main>
+  <dialog id="manage-category-dialog" aria-labelledby="manage-category-title" aria-describedby="manage-category-help">
+    <form id="manage-category-form">
+      <h2 id="manage-category-title"></h2>
+      <p id="manage-category-help" class="rule-merchant" hidden></p>
+      <label id="manage-category-field">Category name
+        <input id="manage-category-name" maxlength="128" autocomplete="off">
+      </label>
+      <p class="error" id="manage-category-error" role="alert" hidden></p>
+      <div class="reset-actions">
+        <button type="button" class="secondary" id="cancel-category">Cancel</button>
+        <button type="submit" id="submit-category"></button>
+      </div>
+    </form>
+  </dialog>
   <dialog id="rule-dialog" aria-labelledby="rule-title" aria-describedby="rule-merchant">
     <form id="rule-form">
       <div>

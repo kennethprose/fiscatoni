@@ -132,8 +132,7 @@ func TransactionCategories(ctx context.Context, db *sql.DB) ([]string, error) {
 }
 
 func categoryNames(ctx context.Context, db *sql.DB) ([]string, error) {
-	// The ledger itself is the category catalog, including older and CLI imports.
-	rows, err := db.QueryContext(ctx, "SELECT DISTINCT CAST(category AS BINARY) FROM transactions WHERE category <> '' ORDER BY 1")
+	rows, err := db.QueryContext(ctx, "SELECT name FROM categories ORDER BY CAST(name AS BINARY)")
 	if err != nil {
 		return nil, err
 	}

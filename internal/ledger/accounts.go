@@ -22,7 +22,7 @@ func ensureSchema(ctx context.Context, db *sql.DB) error {
 			return err
 		}
 	}
-	return nil
+	return migrateCategories(ctx, db)
 }
 
 func Accounts(ctx context.Context, db *sql.DB) ([]Account, error) {

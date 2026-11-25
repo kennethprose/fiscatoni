@@ -52,6 +52,9 @@ func UpdateTransactionCategory(ctx context.Context, db *sql.DB, id int64, catego
 		}
 	}
 
+	if err := registerCategory(ctx, tx, category); err != nil {
+		return err
+	}
 	if edit.RememberForMerchant {
 		if identity == "" {
 			return ErrMissingMerchant

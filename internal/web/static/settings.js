@@ -35,7 +35,9 @@ document.getElementById("confirm-reset").onsubmit = async event => {
     statusMessage.textContent = "All ledger data was deleted.";
     statusMessage.hidden = false;
     rulesStatus.hidden = true;
+    categoriesStatus.hidden = true;
     loadRules();
+    loadCategories();
   } catch (error) {
     errorMessage.textContent = error.message;
     errorMessage.hidden = false;
@@ -379,6 +381,7 @@ document.getElementById("rule-form").onsubmit = async event => {
     ruleDialog.close();
     showRulesStatus(message);
     loadRules();
+    loadCategories();
   } catch (error) {
     ruleError.textContent = error.message;
     ruleError.hidden = false;
@@ -388,8 +391,132 @@ document.getElementById("rule-form").onsubmit = async event => {
   }
 };
 
+const categoriesEndpoint = "/api/settings/categories";
+const categoriesStatus = document.getElementById("categories-status");
+const categoriesState = document.getElementById("categories-state");
+const categoriesRetry = document.getElementById("categories-retry");
+const categoriesTable = document.getElementById("categories-table");
+const categoriesList = document.getElementById("categories-list");
+const categoryDialog = document.getElementById("manage-category-dialog");
+const categoryName = document.getElementById("manage-category-name");
+const categoryError = document.getElementById("manage-category-error");
+const cancelCategory = document.getElementById("cancel-category");
+const submitCategory = document.getElementById("submit-category");
+let pendingCategories;
+let selectedCategory;
+let categoryAction;
+
+async function loadCategories() {
+  pendingCategories?.abort();
+  const request = new AbortController();
+  pendingCategories = request;
+  categoriesState.textContent = "Loading categories…";
+  categoriesState.hidden = false;
+  categoriesRetry.hidden = categoriesTable.hidden = true;
+  try {
+    const response = await fetch(categoriesEndpoint, {signal: request.signal});
+    if (!response.ok) throw new Error("Could not load categories.");
+    const categories = await response.json();
+    if (request.signal.aborted) return;
+    categoriesList.replaceChildren();
+    for (const category of categories.sort((a, b) => a.name.localeCompare(b.name))) {
+      const row = categoriesList.insertRow();
+      row.insertCell().textContent = category.name;
+      row.insertCell().textContent = category.transactions.toLocaleString();
+      row.insertCell().textContent = category.rules.toLocaleString();
+      const actions = row.insertCell();
+      actions.className = "rule-actions";
+      for (const [action, label] of [["rename", "Rename"], ["delete", "Delete"]]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = action === "delete" ? "rule-action rule-delete" : "rule-action";
+        button.textContent = label;
+        button.setAttribute("aria-label", label + " category " + category.name);
+        button.disabled = action === "delete" && category.transactions > 0;
+        button.onclick = () => openCategoryDialog(category, action);
+        actions.append(button);
+      }
+    }
+    categoriesTable.hidden = !categories.length;
+    categoriesState.hidden = categories.length > 0;
+    categoriesState.textContent = categories.length ? "" : "No categories yet.";
+  } catch {
+    if (request.signal.aborted) return;
+    categoriesState.textContent = "Could not load categories.";
+    categoriesRetry.hidden = false;
+  }
+}
+
+function openCategoryDialog(category, action) {
+  selectedCategory = category;
+  categoryAction = action;
+  const deleting = action === "delete";
+  const creating = action === "create";
+  document.getElementById("manage-category-title").textContent = creating ? "Add category" :
+    deleting ? "Delete category?" : "Rename category";
+  const help = document.getElementById("manage-category-help");
+  help.hidden = creating;
+  help.textContent = deleting ? `Delete “${category.name}”? Any merchant rules using this category will also be deleted.` :
+    "The new name will appear on all transactions and merchant rules that use this category.";
+  document.getElementById("manage-category-field").hidden = deleting;
+  categoryName.required = !deleting;
+  categoryName.value = category?.name || "";
+  categoryError.hidden = true;
+  submitCategory.textContent = creating ? "Add category" : deleting ? "Delete category" : "Save name";
+  submitCategory.className = deleting ? "danger" : "primary";
+  categoryDialog.showModal();
+  (deleting ? cancelCategory : categoryName).focus();
+}
+
+document.getElementById("create-category").onclick = () => openCategoryDialog(null, "create");
+categoriesRetry.onclick = loadCategories;
+cancelCategory.onclick = () => categoryDialog.close();
+categoryDialog.oncancel = event => {
+  if (submitCategory.disabled) event.preventDefault();
+};
+
+document.getElementById("manage-category-form").onsubmit = async event => {
+  event.preventDefault();
+  if (submitCategory.disabled) return;
+  const creating = categoryAction === "create";
+  const deleting = categoryAction === "delete";
+  const url = creating ? categoriesEndpoint : categoriesEndpoint + "/" + encodeURIComponent(selectedCategory.id);
+  const options = {
+    method: creating ? "POST" : deleting ? "DELETE" : "PATCH",
+    headers: {"X-Fiscatoni": "settings"}
+  };
+  if (!deleting) {
+    options.headers["Content-Type"] = "application/json";
+    options.body = JSON.stringify({name: categoryName.value.trim()});
+  }
+  submitCategory.disabled = cancelCategory.disabled = categoryName.disabled = true;
+  categoryError.hidden = categoriesStatus.hidden = true;
+  try {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      const problem = await response.json();
+      if (deleting && response.status === 409) loadCategories();
+      throw new Error(problem.error || "Could not save the category change.");
+    }
+    categoryDialog.close();
+    categoriesStatus.textContent = creating ? "Category added." : deleting ? "Category deleted." : "Category renamed.";
+    categoriesStatus.hidden = false;
+    loadCategories();
+    if (!creating) loadRules();
+  } catch (error) {
+    categoryError.textContent = error.message;
+    categoryError.hidden = false;
+  } finally {
+    submitCategory.disabled = cancelCategory.disabled = categoryName.disabled = false;
+  }
+};
+
 rulesRetry.onclick = loadRules;
 window.addEventListener("pageshow", event => {
-  if (event.persisted) loadRules();
+  if (event.persisted) {
+    loadRules();
+    loadCategories();
+  }
 });
 loadRules();
+loadCategories();

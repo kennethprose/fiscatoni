@@ -10,7 +10,6 @@ import (
 	"unicode/utf8"
 
 	"fiscatoni/internal/importer"
-	"github.com/go-sql-driver/mysql"
 )
 
 type MerchantRule struct {
@@ -41,26 +40,10 @@ func compileMerchantPattern(pattern string) (*regexp.Regexp, error) {
 }
 
 func duplicateRuleError(err error) error {
-	var conflict *mysql.MySQLError
-	if errors.As(err, &conflict) && conflict.Number == 1062 {
+	if isDuplicateKey(err) {
 		return ErrDuplicateMerchantRule
 	}
 	return err
-}
-
-func beginMerchantRuleChange(ctx context.Context, db *sql.DB) (*sql.Tx, error) {
-	if err := ensureSchema(ctx, db); err != nil {
-		return nil, err
-	}
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
-	if err != nil {
-		return nil, err
-	}
-	if err := lockLedgerAccounts(ctx, tx); err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-	return tx, nil
 }
 
 func CreateMerchantRule(ctx context.Context, db *sql.DB, match, category string, regex, applyToHistory bool) (int64, error) {
@@ -72,11 +55,14 @@ func CreateMerchantRule(ctx context.Context, db *sql.DB, match, category string,
 			return 0, err
 		}
 	}
-	tx, err := beginMerchantRuleChange(ctx, db)
+	tx, err := beginLedgerWideChange(ctx, db)
 	if err != nil {
 		return 0, err
 	}
 	defer tx.Rollback()
+	if err := registerCategory(ctx, tx, category); err != nil {
+		return 0, err
+	}
 
 	var updated int64
 	if regex {
@@ -174,7 +160,7 @@ func MerchantRules(ctx context.Context, db *sql.DB) ([]MerchantRule, error) {
 
 // SwapRegexRuleOrder moves two adjacent rules if they are still in the order shown to the user.
 func SwapRegexRuleOrder(ctx context.Context, db *sql.DB, firstID, secondID int64) error {
-	tx, err := beginMerchantRuleChange(ctx, db)
+	tx, err := beginLedgerWideChange(ctx, db)
 	if err != nil {
 		return err
 	}
@@ -236,11 +222,14 @@ func recoverMerchantNames(ctx context.Context, tx *sql.Tx, rules []MerchantRule,
 }
 
 func UpdateMerchantRule(ctx context.Context, db *sql.DB, id [32]byte, category string, applyToHistory bool) (int64, error) {
-	tx, err := beginMerchantRuleChange(ctx, db)
+	tx, err := beginLedgerWideChange(ctx, db)
 	if err != nil {
 		return 0, err
 	}
 	defer tx.Rollback()
+	if err := registerCategory(ctx, tx, category); err != nil {
+		return 0, err
+	}
 	result, err := tx.ExecContext(ctx, "UPDATE merchant_categories SET category=? WHERE merchant_key=?", category, id[:])
 	if err := checkRuleUpdate(ctx, tx, result, err, "SELECT EXISTS(SELECT 1 FROM merchant_categories WHERE merchant_key=?)", id[:]); err != nil {
 		return 0, err
@@ -261,11 +250,14 @@ func UpdateRegexMerchantRule(ctx context.Context, db *sql.DB, id int64, pattern 
 			return 0, err
 		}
 	}
-	tx, err := beginMerchantRuleChange(ctx, db)
+	tx, err := beginLedgerWideChange(ctx, db)
 	if err != nil {
 		return 0, err
 	}
 	defer tx.Rollback()
+	if err := registerCategory(ctx, tx, category); err != nil {
+		return 0, err
+	}
 	result, err := tx.ExecContext(ctx, "UPDATE merchant_regex_rules SET pattern=COALESCE(?,pattern), category=? WHERE id=?", pattern, category, id)
 	if err := checkRuleUpdate(ctx, tx, result, duplicateRuleError(err), "SELECT EXISTS(SELECT 1 FROM merchant_regex_rules WHERE id=?)", id); err != nil {
 		return 0, err

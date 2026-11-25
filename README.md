@@ -24,6 +24,10 @@ Use **Delete** and confirm to remove a row. If you import the same file again in
 
 Open **Settings**, select **Delete all data**, then confirm in the dialog. This clears all accounts, transactions, categories, import history, and remembered merchant rules. You can add accounts and import statements again from **Imports**.
 
+## Manage categories
+
+Under **Settings → Categories**, see each category and how many transactions and merchant rules use it. Add categories to make them available in Imports and transaction edits. Renaming updates existing transactions and merchant rules. Once a category has no transactions, you can delete it and any merchant rules that use it.
+
 ## Manage merchant rules
 
 Open **Settings** and find **Merchant rules**. Edit a rule to change the category for future matching imports, or delete it to let those imports use their bank category when available. Older rules show the merchant name when it can be recovered from a saved transaction. Rules labeled **Merchant name unavailable** can still be edited or deleted.
